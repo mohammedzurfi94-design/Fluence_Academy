@@ -188,41 +188,58 @@ async def handle_cat_academic(callback: CallbackQuery):
 @courses_router.callback_query(F.data == "acad_writing")
 async def handle_acad_writing(callback: CallbackQuery):
     text = (
-        "✍️ <b>الكتابة الأكاديمية والبحوث | Academic Writing & Research</b>\n\n"
-        "📌 <b>محاور المسار التدريبي:</b>\n"
-        "• هيكلة الأوراق البحثية، رسائل الماجستير، وأطاريح الدكتوراه وفق أحدث المعايير.\n"
-        "• صياغة الملخصات (Abstracts)، المقدمة، ومراجعة الأدبيات (Literature Review).\n"
-        "• أساليب التوثيق المعتمدة عالمياً (APA, Harvard, IEEE, Chicago).\n"
-        "• تقنيات إعادة الصياغة (Paraphrasing) المتقنة وتجنب الاستلال والسرقة الأدبية (Plagiarism).\n"
-        "• استخدام العبارات الانتقالية والروابط الأكاديمية الاحترافية (Signposting)."
+        "✍️ <b>الكتابة الأكاديمية والبحوث (Academic Writing & Research)</b>\n\n"
+        "مسار متقدم يهدف إلى تطوير مهاراتك في كتابة المقالات الأكاديمية (Essays) والأبحاث الرصينة (Research Papers). نركز في هذا الكورس على:\n"
+        "• هيكلية البحث الأكاديمي وصياغة الأطروحة (Thesis Statement).\n"
+        "• بناء الحجج المنطقية وتجنب الانتحال العلمي (Plagiarism).\n"
+        "• استخدام المفردات الأكاديمية الدقيقة وأنظمة الاقتباس العالمية (مثل APA و MLA).\n\n"
+        "📩 <b>للتسجيل والاستفسار:</b>"
     )
-    await callback.message.edit_text(text, reply_markup=get_sub_level_keyboard("cat_academic"), parse_mode="HTML")
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="💬 التواصل مع الأستاذ للتسجيل", url="https://t.me/Fluenceacademy")],
+            [InlineKeyboardButton(text="🔙 رجوع | Back", callback_data="cat_academic")]
+        ]
+    )
+    await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
     await callback.answer()
 
 @courses_router.callback_query(F.data == "acad_presentations")
 async def handle_acad_presentations(callback: CallbackQuery):
     text = (
-        "🎤 <b>مهارات العرض والإلقاء | Academic Presentations</b>\n\n"
-        "📌 <b>محاور المسار التدريبي:</b>\n"
-        "• إعداد وتصميم شرائح العرض العلمي (Slides) بطريقة جذابة ومختصرة.\n"
-        "• أسلوب الخطاب الأكاديمي ولغة الجسد الاحترافية في المؤتمرات والندوات والسمينارات.\n"
-        "• فن التحدث أمام لجان المناقشة وإدارة جلسات الأسئلة والأجوبة (Q&A) بكل ثقة وهدوء.\n"
-        "• التحكم بنبرة الصوت وتوصيل الفكرة البحثية بأعلى وضوح ممكن."
+        "🎤 <b>مهارات العرض والإلقاء (Academic Presentations)</b>\n\n"
+        "صُمم هذا الكورس لإعدادك للوقوف بثقة في السمينارات ومناقشات البحوث (Thesis Defense):\n"
+        "• تصميم عروض تقديمية (Presentations) احترافية ومؤثرة.\n"
+        "• استراتيجيات التحدث الأكاديمي أمام الجمهور وإدارة لغة الجسد.\n"
+        "• كيفية التعامل مع أسئلة المناقشين (لجان المناقشة) والدفاع عن أفكارك بأسلوب علمي رصين.\n\n"
+        "📩 <b>للتسجيل والاستفسار:</b>"
     )
-    await callback.message.edit_text(text, reply_markup=get_sub_level_keyboard("cat_academic"), parse_mode="HTML")
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="💬 التواصل مع الأستاذ للتسجيل", url="https://t.me/Fluenceacademy")],
+            [InlineKeyboardButton(text="🔙 رجوع | Back", callback_data="cat_academic")]
+        ]
+    )
+    await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
     await callback.answer()
 
 @courses_router.callback_query(F.data == "acad_phonetics")
 async def handle_acad_phonetics(callback: CallbackQuery):
     text = (
-        "🗣️ <b>النطق والتجويد اللفظي | Pronunciation & Phonetics</b>\n\n"
-        "📌 <b>محاور المسار التدريبي:</b>\n"
-        "• دراسة مخارج الحروف الإنجليزية والرموز الصوتية العالمية (IPA).\n"
-        "• نبر الكلمات والجمل (Word Stress & Sentence Stress) لإعطاء المعنى الصحيح.\n"
-        "• التنغيم (Intonation) والربط الصوتي الطبيعي بين الكلمات (Connected Speech).\n"
-        "• معالجة الأخطاء الشائعة في النطق العربي وتحقيق مخارج صوتية واضحة ومريحة."
+        "🗣 <b>النطق والتجويد اللفظي (Pronunciation & Phonetics)</b>\n\n"
+        "كورس تخصصي دقيق، ومثالي لطلبة وخريجي أقسام اللغة الإنجليزية والباحثين:\n"
+        "• دراسة متعمقة لعلم الصوتيات (Phonetics) ومخارج الحروف الصحيحة.\n"
+        "• التدريب على الكلام المتصل (Connected Speech) والتنغيم اللفظي (Intonation).\n"
+        "• التخلص من أخطاء النطق الشائعة وضبط اللكنة للوصول إلى النطق الأكاديمي الاحترافي.\n\n"
+        "📩 <b>للتسجيل والاستفسار:</b>"
     )
-    await callback.message.edit_text(text, reply_markup=get_sub_level_keyboard("cat_academic"), parse_mode="HTML")
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="💬 التواصل مع الأستاذ للتسجيل", url="https://t.me/Fluenceacademy")],
+            [InlineKeyboardButton(text="🔙 رجوع | Back", callback_data="cat_academic")]
+        ]
+    )
+    await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
     await callback.answer()
 
 # ---------------------------------------------------------------------------
