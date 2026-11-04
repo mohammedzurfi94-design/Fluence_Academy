@@ -59,15 +59,19 @@ def get_general_english_keyboard() -> InlineKeyboardMarkup:
     General English levels:
     - 🌱 المستوى المبتدئ | Beginner (A1)
     - 📘 المستوى الأساسي | Elementary (A2)
-    - 📈 المستوى قبل المتوسط | Pre-Intermediate (B1)
-    - 🏆 المستوى المتقدم | Intermediate & Upper (B2)
+    - 📙 المستوى قبل المتوسط | Pre-Intermediate (B1)
+    - 📕 المستوى المتوسط | Intermediate & Upper (B2)
+    - 🎓 المستوى المتقدم | Advanced (C1)
+    - 🏆 مستوى الإتقان التام | Proficiency (C2)
     - 🔙 رجوع | Back
     """
     keyboard = [
         [InlineKeyboardButton(text="🌱 المستوى المبتدئ | Beginner (A1)", callback_data="level_a1")],
         [InlineKeyboardButton(text="📘 المستوى الأساسي | Elementary (A2)", callback_data="level_a2")],
-        [InlineKeyboardButton(text="📈 المستوى قبل المتوسط | Pre-Intermediate (B1)", callback_data="level_b1")],
-        [InlineKeyboardButton(text="🏆 المستوى المتقدم | Intermediate & Upper (B2)", callback_data="level_b2")],
+        [InlineKeyboardButton(text="📙 المستوى قبل المتوسط | Pre-Intermediate (B1)", callback_data="level_b1")],
+        [InlineKeyboardButton(text="📕 المستوى المتوسط | Intermediate & Upper (B2)", callback_data="level_b2")],
+        [InlineKeyboardButton(text="🎓 المستوى المتقدم | Advanced (C1)", callback_data="level_c1")],
+        [InlineKeyboardButton(text="🏆 مستوى الإتقان التام | Proficiency (C2)", callback_data="level_c2")],
         [InlineKeyboardButton(text="🔙 رجوع | Back", callback_data="back_to_courses")]
     ]
     return InlineKeyboardMarkup(inline_keyboard=keyboard)

@@ -103,7 +103,7 @@ async def handle_level_a2(callback: CallbackQuery):
 @courses_router.callback_query(F.data == "level_b1")
 async def handle_level_b1(callback: CallbackQuery):
     text = (
-        "📈 <b>المستوى قبل المتوسط | Pre-Intermediate (B1)</b>\n\n"
+        "📙 <b>المستوى قبل المتوسط | Pre-Intermediate (B1)</b>\n\n"
         "📌 <b>لمن هذا المستوى؟</b>\n"
         "لمن يسعى للتخلص من التردد والترجمة الذهنية وبدء التحدث بطلاقة وتلقائية طبيعية.\n\n"
         "🎯 <b>أهم المخرجات والمهارات:</b>\n"
@@ -118,7 +118,7 @@ async def handle_level_b1(callback: CallbackQuery):
 @courses_router.callback_query(F.data == "level_b2")
 async def handle_level_b2(callback: CallbackQuery):
     text = (
-        "🏆 <b>المستوى المتقدم | Intermediate & Upper (B2)</b>\n\n"
+        "📕 <b>المستوى المتوسط | Intermediate & Upper (B2)</b>\n\n"
         "📌 <b>لمن هذا المستوى؟</b>\n"
         "للوصول إلى مرحلة الاستقلال اللغوي الكامل والجاهزية المهنية والأكاديمية العالية.\n\n"
         "🎯 <b>أهم المخرجات والمهارات:</b>\n"
@@ -128,6 +128,46 @@ async def handle_level_b2(callback: CallbackQuery):
         "• إتقان التعبيرات الاصطلاحية (Idioms) والمفردات المتقدمة."
     )
     await callback.message.edit_text(text, reply_markup=get_sub_level_keyboard("cat_general"), parse_mode="HTML")
+    await callback.answer()
+
+@courses_router.callback_query(F.data == "level_c1")
+async def handle_level_c1(callback: CallbackQuery):
+    text = (
+        "🎓 <b>المستوى المتقدم | Advanced (C1)</b>\n\n"
+        "المرحلة المتقدمة التي تؤهلك للاستخدام الفعال والمرن للغة الإنجليزية في المجالات الأكاديمية والمهنية الرفيعة:\n"
+        "• فهم مجموعة واسعة من النصوص الطويلة والمعقدة والتعرف على المعاني الضمنية والعميقة.\n"
+        "• التعبير عن الأفكار بطلاقة وعفوية تامة دون بحث ملحوظ عن المفردات والتراكيب.\n"
+        "• استخدام اللغة بمرونة وفعالية في الأغراض الاجتماعية، الأكاديمية، والمهنية المرموقة.\n"
+        "• إنتاج نصوص واضحة، حسنة البنية، ومفصلة في أصعب المواضيع البحثية والمهنية.\n\n"
+        "📩 <b>للتسجيل والاستفسار:</b>"
+    )
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="💬 التواصل مع الأستاذ للتسجيل", url="https://t.me/Fluenceacademy")],
+            [InlineKeyboardButton(text="🔙 رجوع | Back", callback_data="cat_general")]
+        ]
+    )
+    await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
+    await callback.answer()
+
+@courses_router.callback_query(F.data == "level_c2")
+async def handle_level_c2(callback: CallbackQuery):
+    text = (
+        "🏆 <b>مستوى الإتقان التام (Proficiency - C2)</b>\n\n"
+        "هو أعلى درجات إتقان اللغة الإنجليزية. يوصلك هذا الكورس إلى مستوى يضاهي المتحدث الأصلي (Native Speaker) ويهدف إلى:\n"
+        "• الفهم التلقائي التام لكل ما تقرأه أو تسمعه مهما كان معقداً أو تخصصياً وبدون أي مجهود.\n"
+        "• التعبير بطلاقة مطلقة ودقة متناهية، مع القدرة على تمييز أدق الفروق في المعاني (Nuances) في أصعب المواقف الأكاديمية والمهنية.\n"
+        "• تلخيص المعلومات، إعادة صياغتها، وتركيب الحجج والنقاشات النقدية من مصادر متعددة بمرونة تامة.\n"
+        "• إتقان التلفظ (Phonetics) بلكنة أصيلة لا تشوبها شائبة.\n\n"
+        "📩 <b>للتسجيل والاستفسار:</b>"
+    )
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="💬 التواصل مع الأستاذ للتسجيل", url="https://t.me/Fluenceacademy")],
+            [InlineKeyboardButton(text="🔙 رجوع | Back", callback_data="cat_general")]
+        ]
+    )
+    await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
     await callback.answer()
 
 # ---------------------------------------------------------------------------
