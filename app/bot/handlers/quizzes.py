@@ -210,9 +210,36 @@ async def handle_answer_selected(callback: CallbackQuery):
 
     await callback.answer()
 
-@quizzes_router.message(F.text == "📝 Quizzes & Grades")
+@quizzes_router.message(F.text.in_(["📝 اختبار المستوى | Placement Test"]))
+async def handle_placement_test(message: Message):
+    """Displays the academic Placement Test overview and launch button."""
+    async with AsyncSessionLocal() as session:
+        # Check if there is an existing quiz
+        q_query = select(Quiz).limit(1)
+        q_result = await session.execute(q_query)
+        quiz = q_result.scalar_one_or_none()
+
+    quiz_callback = f"start_quiz_{quiz.lesson_id or quiz.id}" if quiz else "browse_available_lessons"
+
+    text = (
+        "📝 <b>اختبار تحديد المستوى الأكاديمي | English Placement Test</b>\n\n"
+        "صُمم هذا الاختبار المعتمد لتحديد مستواك الحقيقي في اللغة الإنجليزية "
+        "بدقة وفق المعيار الأوروبي المشترك (A1 - C1).\n\n"
+        "📌 <b>تفاصيل الاختبار:</b>\n"
+        "• يغطي المهارات الأساسية: القواعد (Grammar)، المفردات (Vocabulary)، وتراكيب الجمل.\n"
+        "• أسئلة متدرجة الصعوبة باختيارات متعددة.\n"
+        "• تقييم فوري وتحديد دقيق للمستوى والمسار التدريبي الأنسب لك.\n\n"
+        "جاهز للبدء؟ اضغط على الزر أدناه وانطلق: 👇"
+    )
+    keyboard = [
+        [InlineKeyboardButton(text="🚀 بدء اختبار تحديد المستوى | Start Test", callback_data=quiz_callback)],
+        [InlineKeyboardButton(text="📚 تصفح الدورات | Browse Courses", callback_data="back_to_courses")]
+    ]
+    await message.answer(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard), parse_mode="HTML")
+
+@quizzes_router.message(F.text.in_(["🎯 الاختبارات اليومية | Quizzes", "📝 Quizzes & Grades"]))
 async def handle_quizzes_and_grades(message: Message):
-    """Displays student quiz history and scores."""
+    """Displays student quiz history, daily challenges, and scores."""
     tg_user = message.from_user
     if not tg_user:
         return
@@ -223,7 +250,7 @@ async def handle_quizzes_and_grades(message: Message):
         user = u_result.scalar_one_or_none()
 
         if not user:
-            await message.answer("Please type /start to register.")
+            await message.answer("⚠️ يرجى كتابة /start أولاً لتفعيل حسابك الأكاديمي.")
             return
 
         # Fetch recent attempts
@@ -231,20 +258,30 @@ async def handle_quizzes_and_grades(message: Message):
         att_result = await session.execute(att_query)
         attempts = att_result.scalars().all()
 
-    if not attempts:
-        text = (
-            f"📝 <b>Academic Progress & Grades</b>\n\n"
-            f"You haven't taken any quizzes yet.\n"
-            f"Head over to <b>📚 Browse Courses</b> to study lessons and test your knowledge!"
-        )
-        await message.answer(text, parse_mode="HTML")
-        return
+        # Fetch available quizzes
+        quizzes_q = select(Quiz).limit(5)
+        quizzes_res = await session.execute(quizzes_q)
+        available_quizzes = quizzes_res.scalars().all()
 
-    text = f"📝 <b>Academic Record: {user.full_name}</b>\n\n<b>Recent Quiz Results:</b>\n"
-    for att in attempts[:5]:
-        badge = "✅" if att.passed else "❌"
-        date_str = att.completed_at.strftime("%Y-%m-%d")
-        text += f"• Quiz #{att.quiz_id}: <b>{att.score_percentage}%</b> {badge} <i>({date_str})</i>\n"
+    text = f"🎯 <b>قسم الاختبارات والتقييم اليومي | Quizzes & Grades</b>\n\n"
+    text += f"👤 <b>الطالب:</b> {user.full_name}\n"
 
-    text += "\nKeep going to reach 100% mastery! 🚀"
-    await message.answer(text, parse_mode="HTML")
+    if attempts:
+        text += f"📊 <b>نتائج آخر الاختبارات المنجزة:</b>\n"
+        for att in attempts[:5]:
+            badge = "✅ ناجح" if att.passed else "❌ تدرب أكثر"
+            date_str = att.completed_at.strftime("%Y-%m-%d")
+            text += f"• اختبار #{att.quiz_id}: النتيجة <b>{att.score_percentage}%</b> ({badge}) <i>{date_str}</i>\n"
+        text += "\n"
+    else:
+        text += "لم تقم بأداء أي اختبارات بعد. ابدأ الآن بتحدي معلوماتك اليومية! 🚀\n\n"
+
+    keyboard = []
+    if available_quizzes:
+        text += "📝 <b>اختر اختباراً للبدء الآن:</b>"
+        for q in available_quizzes:
+            keyboard.append([InlineKeyboardButton(text=f"✍️ {q.title}", callback_data=f"start_quiz_{q.lesson_id or q.id}")])
+
+    keyboard.append([InlineKeyboardButton(text="📚 الانتقال للدورات | Courses", callback_data="back_to_courses")])
+
+    await message.answer(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard), parse_mode="HTML")

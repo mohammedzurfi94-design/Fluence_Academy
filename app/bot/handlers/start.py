@@ -19,6 +19,28 @@ async def handle_start(message: Message):
     if not tg_user:
         return
 
+    # Direct Force Subscription check for channel membership
+    bot = message.bot
+    if bot:
+        is_member, _ = await check_user_channel_membership(bot, tg_user.id)
+        if not is_member:
+            channel = settings.REQUIRED_TELEGRAM_CHANNEL or "@FluenceEnglish"
+            clean_channel = channel.replace("@", "")
+            channel_url = f"https://t.me/{clean_channel}"
+            prompt_text = (
+                f"⚠️ <b>عذراً، يجب عليك الاشتراك في القناة أولاً!</b>\n\n"
+                f"للاستفادة من محتوى <b>Fluence Academy</b> والوصول إلى كافة الكورسات والدروس والاختبارات، "
+                f"يرجى الانضمام إلى قناتنا الرسمية:\n"
+                f"👉 <b>{channel}</b>\n\n"
+                f"اضغط على الزر أدناه للانضمام، ثم اضغط على <b>«تحقق من الاشتراك ✅»</b> للبدء فوراً! 👇"
+            )
+            await message.answer(
+                prompt_text,
+                reply_markup=get_channel_join_keyboard(channel_url),
+                parse_mode="HTML"
+            )
+            return
+
     telegram_id = tg_user.id
     full_name = tg_user.full_name or "Student"
     username = tg_user.username
@@ -82,6 +104,54 @@ async def handle_start(message: Message):
     except Exception as e:
         print(f"[Send Message Error] {e}")
 
+@start_router.message(F.text.in_(["✨ عن الأكاديمية | About Fluence"]))
+async def handle_about_fluence(message: Message):
+    """Displays prestigious overview about Fluence Academy."""
+    about_text = (
+        "✨ <b>عن أكاديمية Fluence للغة الإنجليزية | About Fluence Academy</b>\n\n"
+        "🎓 <b>الرؤية والرسالة:</b>\n"
+        "أكاديمية تعليمية متكاملة تهدف إلى تمكين الطلبة والباحثين من امتلاك ناصية "
+        "اللغة الإنجليزية بطلاقة حقيقية، والانتقال من مرحلة الحفظ والتلقين إلى مرحلة "
+        "التفكير والاستخدام العملي التلقائي.\n\n"
+        "👨‍🏫 <b>المشرف العام والمحاضر:</b>\n"
+        "<b>الأستاذ محمد حسين</b>\n"
+        "خبير تدريس اللغة الإنجليزية ومعد البرامج التدريبية المعتمدة للامتحانات التنافسية "
+        "والدراسات العليا والاختبارات الوطنية.\n\n"
+        "🌟 <b>أهم ما يميز الأكاديمية:</b>\n"
+        "• مناهج تفاعلية حديثة ومدروسة تواكب متطلبات سوق العمل والقبول الجامعي.\n"
+        "• مسارات تخصصية دقيقة (لغة عامة، لغة أكاديمية، كورس تنافسي، وكورس وطني INELT).\n"
+        "• بنك اختبارات دوري ذكي لتقييم المستوى باستمرار.\n"
+        "• نظام تعليمي سحابي متطور يعمل على مدار الساعة لخدمتكم مجاناً.\n\n"
+        "📢 <b>القناة الرسمية على تيليجرام:</b> @FluenceEnglish"
+    )
+    keyboard = [
+        [InlineKeyboardButton(text="📢 زيارة القناة الرسمية | Visit Channel", url="https://t.me/FluenceEnglish")],
+        [InlineKeyboardButton(text="📚 استكشاف الدورات | Explore Courses", callback_data="back_to_courses")]
+    ]
+    await message.answer(about_text, reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard), parse_mode="HTML")
+
+@start_router.message(F.text.in_(["💬 الدعم والتواصل | Help & Support", "❓ Help & Support"]))
+async def handle_help_support(message: Message):
+    """Provides contact links with administration and official teacher support."""
+    help_text = (
+        "💬 <b>الدعم الفني والتواصل مع الإدارة | Help & Support</b>\n\n"
+        "فريق أكاديمية Fluence هنا لمساعدتك في أي استفسار أو توجيه تعليمي تحتاجه:\n\n"
+        "👨‍🏫 <b>التواصل المباشر مع الأستاذ محمد حسين:</b>\n"
+        "👉 @Alzurfi1\n\n"
+        "📢 <b>القناة الرسمية للأكاديمية:</b>\n"
+        "👉 @FluenceEnglish\n\n"
+        "📌 <b>الخدمات المتاحة عبر التواصل المباشر:</b>\n"
+        "• التسجيل وحجز المقاعد في الدورات التخصصية (التنافسي / INELT).\n"
+        "• طلب استشارة أكاديمية لتحديد المستوى والمسار المناسب.\n"
+        "• الإبلاغ عن أي استفسار تقني بخصوص البوت أو الاختبارات.\n\n"
+        "يسعدنا تواصلكم دائماً ونتمنى لكم التوفيق والتميز! 🌟"
+    )
+    keyboard = [
+        [InlineKeyboardButton(text="📲 تواصل مع الإدارة | Contact Admin", url="https://t.me/Alzurfi1")],
+        [InlineKeyboardButton(text="📢 القناة الرسمية | Official Channel", url="https://t.me/FluenceEnglish")]
+    ]
+    await message.answer(help_text, reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard), parse_mode="HTML")
+
 @start_router.message(F.text == "👤 My Profile")
 async def handle_my_profile(message: Message):
     """Displays student profile, subscription plan, and registration date."""
@@ -108,42 +178,15 @@ async def handle_my_profile(message: Message):
     reg_date = user.created_at.strftime("%Y-%m-%d")
 
     profile_text = (
-        f"👤 <b>Student Profile</b>\n\n"
-        f"<b>Student ID:</b> <code>FA-{user.id:04d}</code>\n"
-        f"<b>Name:</b> {user.full_name}\n"
-        f"<b>Role:</b> {user.role.capitalize()}\n"
-        f"<b>Subscription Plan:</b> {plan} ({status})\n"
-        f"<b>Joined:</b> {reg_date}\n\n"
-        f"Keep up the great work! 🌟"
+        f"👤 <b>الملف التعريفي للطالب | Student Profile</b>\n\n"
+        f"<b>رقم الطالب:</b> <code>FA-{user.id:04d}</code>\n"
+        f"<b>الاسم:</b> {user.full_name}\n"
+        f"<b>الرتبة:</b> {user.role.capitalize()}\n"
+        f"<b>الخطة:</b> {plan} ({status})\n"
+        f"<b>تاريخ الانضمام:</b> {reg_date}\n\n"
+        f"نتمنى لك دوام التقدم والنجاح! 🌟"
     )
-
     await message.answer(profile_text, parse_mode="HTML")
-
-@start_router.message(F.text == "📢 Official Channel")
-async def handle_channel_info(message: Message):
-    """Directs students to the official academy channel."""
-    channel = settings.REQUIRED_TELEGRAM_CHANNEL or "@FluenceAcademy"
-    clean_channel = channel.replace("@", "")
-    url = f"https://t.me/{clean_channel}"
-
-    text = (
-        f"📢 <b>Fluence Academy Official Channel</b>\n\n"
-        f"Stay updated with new lesson releases, live sessions, announcements, and study tips!\n\n"
-        f"👉 <b>Channel:</b> {channel}"
-    )
-    await message.answer(text, reply_markup=get_channel_join_keyboard(url), parse_mode="HTML")
-
-@start_router.message(F.text == "❓ Help & Support")
-async def handle_help_support(message: Message):
-    """Provides help contact and guidance."""
-    help_text = (
-        f"❓ <b>Fluence Academy Support</b>\n\n"
-        f"Need assistance with a course, quiz, or your account?\n\n"
-        f"• If a lesson won't open, ensure you've joined our channel.\n"
-        f"• For administrative inquiries, contact our academy team.\n\n"
-        f"Happy learning! 🚀"
-    )
-    await message.answer(help_text, parse_mode="HTML")
 
 @start_router.callback_query(F.data == "check_channel_joined")
 async def handle_check_channel_callback(callback: CallbackQuery):
