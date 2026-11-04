@@ -12,15 +12,19 @@ if sys.platform == "win32":
 import uvicorn
 from app.core.config import settings
 from app.database.init_db import init_database
+import os
 from app.bot.bot_instance import create_bot, create_dispatcher
 from app.dashboard.admin_app import admin_app
 
 async def start_web_dashboard():
-    """Starts the FastAPI Admin Portal on localhost."""
+    """Starts the FastAPI Admin Portal compatible with Render and Localhost."""
+    listen_port = int(os.environ.get("PORT", settings.PORT or settings.ADMIN_PORT))
+    listen_host = "0.0.0.0"
+
     config = uvicorn.Config(
         app=admin_app,
-        host=settings.ADMIN_HOST,
-        port=settings.ADMIN_PORT,
+        host=listen_host,
+        port=listen_port,
         log_level="warning"
     )
     server = uvicorn.Server(config)
