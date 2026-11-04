@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block title %}Backups & Safety{% endblock %}
+{% block header_title %}Database Backups & Disaster Recovery{% endblock %}
+
+{% block content %}
+<div class="space-y-8 max-w-7xl mx-auto">
+
+    <!-- Overview Card -->
+    <div class="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
+        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+                <h3 class="text-base font-bold text-gray-900">System Backup & Recovery</h3>
+                <p class="text-xs text-gray-500 mt-1 max-w-2xl">
+                    Create timestamped snapshots of your complete Fluence Academy database. All registered students, courses, grades, and subscriptions are saved securely.
+                </p>
+            </div>
+
+            <form action="/backups/create" method="POST">
+                <button type="submit" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-md transition flex items-center gap-2">
+                    <i class="fa-solid fa-floppy-disk"></i>
+                    <span>Create Instant Backup Now</span>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- How Recovery Works Banner -->
+    <div class="bg-slate-900 rounded-2xl p-6 text-white shadow-sm flex items-start gap-4">
+        <div class="w-10 h-10 rounded-xl bg-indigo-600/30 text-indigo-400 flex items-center justify-center text-lg flex-shrink-0">
+            <i class="fa-solid fa-circle-info"></i>
+        </div>
+        <div class="space-y-1 text-xs">
+            <h4 class="font-bold text-sm text-white">How Backup & Recovery Works:</h4>
+            <p class="text-slate-300">
+                • <b>Zero Data Loss:</b> Each backup is an exact copy of <code class="bg-slate-800 px-1 py-0.5 rounded text-indigo-300">fluence.db</code>.
+            </p>
+            <p class="text-slate-300">
+                • <b>Recovery:</b> To restore any past version, simply download the desired backup file and place it in the <code class="bg-slate-800 px-1 py-0.5 rounded text-indigo-300">storage/</code> directory.
+            </p>
+            <p class="text-slate-300">
+                • <b>Cloud Deployment:</b> When migrating to Supabase PostgreSQL in the future, Supabase performs automated daily cloud backups automatically.
+            </p>
+        </div>
+    </div>
+
+    <!-- Existing Backups List -->
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <div class="p-6 border-b border-gray-100 flex items-center justify-between">
+            <h4 class="font-bold text-gray-900 text-sm">Available Backup Snapshots</h4>
+            <span class="text-xs text-gray-400">Stored in <code>storage/backups/</code></span>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+                <thead class="bg-gray-50/75 text-gray-500 uppercase tracking-wider font-semibold border-b border-gray-100">
+                    <tr>
+                        <th class="py-4 px-6">Filename</th>
+                        <th class="py-4 px-6">Size</th>
+                        <th class="py-4 px-6">Created Timestamp</th>
+                        <th class="py-4 px-6 text-right">Download</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    {% for b in backups %}
+                    <tr class="hover:bg-gray-50/50 transition">
+                        <td class="py-4 px-6 font-mono font-medium text-slate-800 flex items-center gap-2">
+                            <i class="fa-solid fa-database text-indigo-500"></i>
+                            <span>{{ b.name }}</span>
+                        </td>
+                        <td class="py-4 px-6 text-gray-500 font-mono">
+                            {{ b.size_kb }} KB
+                        </td>
+                        <td class="py-4 px-6 text-gray-500">
+                            {{ b.created_time }}
+                        </td>
+                        <td class="py-4 px-6 text-right">
+                            <a href="/backups/download/{{ b.name }}" class="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold rounded-lg text-xs transition inline-flex items-center gap-1.5">
+                                <i class="fa-solid fa-download"></i>
+                                <span>Download</span>
+                            </a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="4" class="py-12 text-center text-gray-400 text-xs">
+                            No backup snapshots created yet. Click "Create Instant Backup Now" above to generate your first backup!
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
