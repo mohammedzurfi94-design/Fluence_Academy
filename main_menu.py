@@ -110,3 +110,28 @@ def get_sub_level_keyboard(parent_back: str, browse_callback: str = "browse_avai
         [InlineKeyboardButton(text="🔙 رجوع | Back", callback_data=parent_back)]
     ]
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+def get_library_keyboard() -> InlineKeyboardMarkup:
+    """
+    Library Categories Keyboard:
+    - 🎁 الملفات الخاصة بالأستاذ | Teacher's Exclusive Files
+    - 📝 ملخصات القواعد | Grammar Summaries
+    - 🗣 أدلة التلفظ | Phonetics Guides
+    - 🎯 نماذج الامتحانات | Exam Past Papers
+    - 🔙 العودة للقائمة الرئيسية | Main Menu
+    """
+    keyboard = [
+        [InlineKeyboardButton(text="🎁 الملفات الخاصة بالأستاذ | Teacher's Exclusive Files", callback_data="files_teacher")],
+        [InlineKeyboardButton(text="📝 ملخصات القواعد | Grammar Summaries", callback_data="files_grammar")],
+        [InlineKeyboardButton(text="🗣 أدلة التلفظ | Phonetics Guides", callback_data="files_phonetics")],
+        [InlineKeyboardButton(text="🎯 نماذج الامتحانات | Exam Past Papers", callback_data="files_exams")],
+        [InlineKeyboardButton(text="🔙 العودة للقائمة الرئيسية | Main Menu", callback_data="back_to_main_menu")]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+def get_library_back_keyboard() -> InlineKeyboardMarkup:
+    """Returns back button to the digital library menu."""
+    keyboard = [
+        [InlineKeyboardButton(text="🔙 رجوع | Back", callback_data="back_to_library")]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)

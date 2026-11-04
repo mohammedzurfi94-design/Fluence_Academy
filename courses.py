@@ -11,7 +11,9 @@ from app.bot.keyboards.main_menu import (
     get_general_english_keyboard,
     get_academic_english_keyboard,
     get_exam_details_keyboard,
-    get_sub_level_keyboard
+    get_sub_level_keyboard,
+    get_library_keyboard,
+    get_library_back_keyboard
 )
 from app.services.channel_service import check_user_channel_membership
 from app.core.config import settings
@@ -428,30 +430,66 @@ async def handle_download_material(callback: CallbackQuery):
     )
 
 # ---------------------------------------------------------------------------
-# 6. Study Files & Materials Library Handler
+# 6. Study Files & Materials Digital Library Handlers
 # ---------------------------------------------------------------------------
 @courses_router.message(F.text.in_(["📁 الملفات والمواد | Study Files & Materials", "الملفات والمواد", "Study Files & Materials"]))
 async def handle_study_materials_library(message: Message):
-    """Displays the study materials library with downloadable handouts and summaries."""
-    async with AsyncSessionLocal() as session:
-        query = select(LessonMaterial).limit(10)
-        result = await session.execute(query)
-        materials = result.scalars().all()
-
+    """Displays the digital library categories."""
     text = (
-        "📁 <b>مكتبة الملفات والمواد الدراسية | Study Files & Materials</b>\n\n"
-        "أهلاً بك في المكتبة الرقمية لأكاديمية Fluence.\n"
-        "تجد هنا ملخصات القواعد، المذكرات التخصصية، وجداول المفردات المعتمدة الجاهزة للتحميل المباشر بصيغة PDF.\n\n"
+        "📁 <b>المكتبة الرقمية | Fluence Digital Library</b>\n\n"
+        "مرحباً بك في مكتبة الأكاديمية. اختر القسم الذي ترغب بتصفح مواده من القائمة أدناه:"
     )
+    await message.answer(text, reply_markup=get_library_keyboard(), parse_mode="HTML")
 
-    keyboard = []
-    if materials:
-        text += "اختر الملف الذي تود تحميله مباشرة إلى جهازك: 👇"
-        for mat in materials:
-            keyboard.append([InlineKeyboardButton(text=f"📄 تحميل {mat.title}", callback_data=f"get_mat_{mat.id}")])
-    else:
-        text += "يتم حالياً رفع وتجهيز الحقائب والملخصات من قبل إدارة الأكاديمية. سيتم إشعاركم في القناة عند توفر كل ملف جديد!"
+@courses_router.callback_query(F.data == "back_to_library")
+async def handle_back_to_library(callback: CallbackQuery):
+    """Returns to the digital library categories menu."""
+    text = (
+        "📁 <b>المكتبة الرقمية | Fluence Digital Library</b>\n\n"
+        "مرحباً بك في مكتبة الأكاديمية. اختر القسم الذي ترغب بتصفح مواده من القائمة أدناه:"
+    )
+    try:
+        await callback.message.edit_text(text, reply_markup=get_library_keyboard(), parse_mode="HTML")
+    except Exception:
+        await callback.message.answer(text, reply_markup=get_library_keyboard(), parse_mode="HTML")
+    await callback.answer()
 
-    keyboard.append([InlineKeyboardButton(text="📢 القناة الرسمية | Official Channel", url="https://t.me/FluenceEnglish")])
+@courses_router.callback_query(F.data == "files_teacher")
+async def handle_files_teacher(callback: CallbackQuery):
+    """Displays placeholder for Teacher's Exclusive Files."""
+    text = (
+        "🎁 <b>الملفات الخاصة بالأستاذ (Teacher's Exclusive Files)</b>\n\n"
+        "جاري تجهيز الملفات الحصرية، عروض الماستر كلاس، وملفات الـ PDF التعليمية الخاصة بأكاديمية Fluence."
+    )
+    await callback.message.edit_text(text, reply_markup=get_library_back_keyboard(), parse_mode="HTML")
+    await callback.answer()
 
-    await message.answer(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard), parse_mode="HTML")
+@courses_router.callback_query(F.data == "files_grammar")
+async def handle_files_grammar(callback: CallbackQuery):
+    """Displays placeholder for Grammar Summaries."""
+    text = (
+        "📝 <b>ملخصات القواعد والأزمنة</b>\n\n"
+        "جاري رفع الملخصات والجداول التوضيحية الخاصة بالأزمنة والكتابة الأكاديمية."
+    )
+    await callback.message.edit_text(text, reply_markup=get_library_back_keyboard(), parse_mode="HTML")
+    await callback.answer()
+
+@courses_router.callback_query(F.data == "files_phonetics")
+async def handle_files_phonetics(callback: CallbackQuery):
+    """Displays placeholder for Phonetics Guides."""
+    text = (
+        "🗣 <b>أدلة التلفظ والصوتيات</b>\n\n"
+        "جاري رفع الجداول الصوتية (IPA Charts) وأدلة التدريب على اللكنة."
+    )
+    await callback.message.edit_text(text, reply_markup=get_library_back_keyboard(), parse_mode="HTML")
+    await callback.answer()
+
+@courses_router.callback_query(F.data == "files_exams")
+async def handle_files_exams(callback: CallbackQuery):
+    """Displays placeholder for Exam Past Papers."""
+    text = (
+        "🎯 <b>نماذج الامتحانات السابقة</b>\n\n"
+        "جاري تجهيز نماذج أسئلة الامتحان التنافسي (أدب إنجليزي) والاختبار الوطني (INELT)."
+    )
+    await callback.message.edit_text(text, reply_markup=get_library_back_keyboard(), parse_mode="HTML")
+    await callback.answer()
