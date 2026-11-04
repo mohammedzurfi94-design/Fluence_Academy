@@ -17,7 +17,7 @@ def get_main_reply_keyboard() -> ReplyKeyboardMarkup:
 def get_channel_join_keyboard(channel_url: str) -> InlineKeyboardMarkup:
     """Returns an inline button asking student to join the required channel."""
     keyboard = [
-        [InlineKeyboardButton(text="📢 Join Official Channel", url=channel_url)],
-        [InlineKeyboardButton(text="✅ I Have Joined, Continue", callback_data="check_channel_joined")]
+        [InlineKeyboardButton(text="📢 انضم إلى القناة الرسمية", url=channel_url)],
+        [InlineKeyboardButton(text="✅ تحقق من الاشتراك", callback_data="check_channel_joined")]
     ]
     return InlineKeyboardMarkup(inline_keyboard=keyboard)

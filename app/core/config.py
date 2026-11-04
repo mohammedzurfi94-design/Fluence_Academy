@@ -18,8 +18,9 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "sqlite+aiosqlite:///./storage/fluence.db"
 
     # Admin Dashboard
-    ADMIN_HOST: str = "127.0.0.1"
+    ADMIN_HOST: str = "0.0.0.0"
     ADMIN_PORT: int = 8000
+    PORT: Optional[int] = None
     DEFAULT_ADMIN_USERNAME: str = "admin"
     DEFAULT_ADMIN_PASSWORD: str = "adminpassword123"
 

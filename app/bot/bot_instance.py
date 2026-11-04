@@ -6,6 +6,7 @@ from app.bot.handlers.start import start_router
 from app.bot.handlers.courses import courses_router
 from app.bot.handlers.quizzes import quizzes_router
 from app.bot.handlers.ai_tutor import ai_router
+from app.bot.middlewares.force_sub import ForceSubscribeMiddleware
 
 def create_bot() -> Bot:
     """Creates and returns the aiogram Bot instance."""
@@ -15,8 +16,13 @@ def create_bot() -> Bot:
     )
 
 def create_dispatcher() -> Dispatcher:
-    """Creates the Dispatcher and registers all routers."""
+    """Creates the Dispatcher and registers all routers and middlewares."""
     dp = Dispatcher()
+
+    # Register Force Subscribe Middleware
+    force_sub_middleware = ForceSubscribeMiddleware()
+    dp.message.outer_middleware(force_sub_middleware)
+    dp.callback_query.outer_middleware(force_sub_middleware)
 
     # Register handlers
     dp.include_router(start_router)

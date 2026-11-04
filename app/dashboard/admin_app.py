@@ -26,6 +26,13 @@ templates = Jinja2Templates(directory=str(BASE_DIR / "app" / "dashboard" / "temp
 admin_app = FastAPI(title="Fluence Academy Admin Portal")
 
 # -------------------------------------------------------------
+# 0. Health Check Route for Render & Monitoring
+# -------------------------------------------------------------
+@admin_app.get("/health")
+async def health_check():
+    return {"status": "ok", "app": "Fluence Academy"}
+
+# -------------------------------------------------------------
 # 1. Authentication Routes
 # -------------------------------------------------------------
 @admin_app.get("/login", response_class=HTMLResponse)

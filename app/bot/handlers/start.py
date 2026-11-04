@@ -153,20 +153,68 @@ async def handle_check_channel_callback(callback: CallbackQuery):
         await callback.answer("System error.", show_alert=True)
         return
 
-    is_member, msg = await check_user_channel_membership(bot, callback.from_user.id)
+    tg_user = callback.from_user
+    is_member, msg = await check_user_channel_membership(bot, tg_user.id)
     channel = settings.REQUIRED_TELEGRAM_CHANNEL or "@FluenceEnglish"
 
     if is_member:
-        await callback.answer("🎉 Verification successful! Welcome aboard!", show_alert=True)
-        await callback.message.edit_text(
-            f"✅ <b>Channel Membership Confirmed!</b>\n\n"
-            f"Thank you for joining <b>{channel}</b>.\n"
-            f"You now have access to all public courses and study resources!\n\n"
-            f"Choose an option below to start learning:",
-            parse_mode="HTML"
+        # Ensure user is registered in the database
+        async with AsyncSessionLocal() as session:
+            try:
+                query = select(User).where(User.telegram_id == tg_user.id)
+                result = await session.execute(query)
+                user = result.scalar_one_or_none()
+
+                if not user:
+                    user = User(
+                        telegram_id=tg_user.id,
+                        username=tg_user.username,
+                        full_name=tg_user.full_name or "Student",
+                        role="student",
+                        is_active=True
+                    )
+                    session.add(user)
+                    await session.flush()
+
+                    sub = Subscription(
+                        user_id=user.id,
+                        plan_type="free",
+                        status="active"
+                    )
+                    session.add(sub)
+                    await session.commit()
+            except Exception as e:
+                await session.rollback()
+                print(f"[Verification Notice] Concurrent user registration handled: {e}")
+
+        await callback.answer("🎉 تم التحقق من اشتراكك بنجاح! أهلاً بك معنا.", show_alert=True)
+
+        welcome_text = (
+            f"مرحباً بك في <b>Fluence Academy</b>! 🎓\n"
+            f"معك الأستاذ محمد حسين.\n"
+            f"رحلتك نحو إتقان اللغة الإنجليزية تبدأ من هنا.\n\n"
+            f"لقد صممنا هذه المنصة لتكون بيئتك الأكاديمية المتكاملة. يمكنك من خلال القائمة أدناه:\n"
+            f"📚 تصفح الكورسات والدروس التفاعلية\n"
+            f"📄 تحميل الملخصات والمواد الدراسية\n"
+            f"📝 أداء الاختبارات وتقييم مستواك بدقة\n"
+            f"🏆 متابعة تقدمك والحصول على شهادات الإتمام\n\n"
+            f"اختر القسم الذي تود البدء به من القائمة بالأسفل لننطلق معاً! 👇"
         )
+
+        try:
+            if callback.message:
+                await callback.message.delete()
+        except Exception:
+            pass
+
+        if callback.message:
+            await callback.message.answer(
+                welcome_text,
+                reply_markup=get_main_reply_keyboard(),
+                parse_mode="HTML"
+            )
     else:
         await callback.answer(
-            f"⚠️ Membership not detected yet!\n\nPlease make sure you joined {channel}, then tap this button again.",
+            f"⚠️ لم يتم العثور على اشتراكك في القناة بعد!\n\nيرجى التأكد من الانضمام إلى {channel} ثم الضغط على تحقق مرة أخرى.",
             show_alert=True
         )

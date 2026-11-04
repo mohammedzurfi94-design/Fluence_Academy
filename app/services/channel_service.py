@@ -8,8 +8,12 @@ async def check_user_channel_membership(bot: Bot, user_id: int) -> tuple[bool, s
         (is_member: bool, message: str)
     """
     channel = settings.REQUIRED_TELEGRAM_CHANNEL
-    if not channel or channel.strip() == "":
+    if not channel or not channel.strip():
         return True, "Channel verification disabled."
+
+    channel = channel.strip()
+    if not channel.startswith("@") and not channel.startswith("-100"):
+        channel = f"@{channel}"
 
     try:
         member = await bot.get_chat_member(chat_id=channel, user_id=user_id)
