@@ -103,8 +103,9 @@ def get_exam_details_keyboard(contact_url: str = "https://t.me/Alzurfi1", button
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 def get_sub_level_keyboard(parent_back: str, browse_callback: str = "browse_available_lessons") -> InlineKeyboardMarkup:
-    """Returns back button to parent category and main catalog."""
+    """Returns registration button and back button to parent category and main catalog."""
     keyboard = [
+        [InlineKeyboardButton(text="💬 التواصل مع الأستاذ للتسجيل", url="https://t.me/Fluenceacademy")],
         [InlineKeyboardButton(text="📚 تصفح الدروس المتاحة | Available Lessons", callback_data=browse_callback)],
         [InlineKeyboardButton(text="🔙 رجوع | Back", callback_data=parent_back)]
     ]

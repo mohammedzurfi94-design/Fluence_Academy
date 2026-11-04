@@ -21,7 +21,7 @@ courses_router = Router(name="courses_router")
 # ---------------------------------------------------------------------------
 # 1. Main Courses Catalog Handler
 # ---------------------------------------------------------------------------
-@courses_router.message(F.text.in_(["📚 الدورات التدريبية | Courses", "📚 Browse Courses"]))
+@courses_router.message(F.text.in_(["📚 الدورات التدريبية | Courses", "الدورات التدريبية", "Courses", "📚 Browse Courses"]))
 async def handle_courses_catalog_message(message: Message):
     """Displays the main courses catalog with interactive inline categories."""
     text = (
@@ -430,7 +430,7 @@ async def handle_download_material(callback: CallbackQuery):
 # ---------------------------------------------------------------------------
 # 6. Study Files & Materials Library Handler
 # ---------------------------------------------------------------------------
-@courses_router.message(F.text.in_(["📁 الملفات والمواد | Study Files & Materials"]))
+@courses_router.message(F.text.in_(["📁 الملفات والمواد | Study Files & Materials", "الملفات والمواد", "Study Files & Materials"]))
 async def handle_study_materials_library(message: Message):
     """Displays the study materials library with downloadable handouts and summaries."""
     async with AsyncSessionLocal() as session:
