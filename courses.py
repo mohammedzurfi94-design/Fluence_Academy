@@ -442,6 +442,7 @@ async def handle_study_materials_library(message: Message):
     await message.answer(text, reply_markup=get_library_keyboard(), parse_mode="HTML")
 
 TEACHER_GRADUATION_PROJECT_FILE_ID = "BQACAgIAAxkBAAFXO51q65mbmqCmN5Iicsz9YPzcBtOx5wACxZ4AAjy_wUrqdXkyS-ifnj0E"
+TEACHER_THESIS_DEFENSE_FILE_ID = "BQACAgIAAxkBAAFXO6Nq65pfns8uqStnOsFaOWIh_KSNLwACx54AAjy_wUqearFEUlBD3j0E"
 
 @courses_router.callback_query(F.data == "back_to_library")
 async def handle_back_to_library(callback: CallbackQuery):
@@ -461,29 +462,41 @@ async def handle_back_to_library(callback: CallbackQuery):
 
 @courses_router.callback_query(F.data == "files_teacher")
 async def handle_files_teacher(callback: CallbackQuery):
-    """Sends Teacher's Exclusive File: Comprehensive Graduation Project Guide."""
-    caption = (
+    """Sends Teacher's Exclusive Files: Graduation Project Guide and Thesis Defense Guide."""
+    caption_1 = (
         "📑 <b>الدليل الشامل لكتابة مشروع التخرج</b>\n\n"
         "دليل متكامل يوضح الخطوات الأساسية ومنهجية البحث في مجالات الأدب، اللغة، وطرائق التدريس.\n"
         "✍️ <b>إعداد:</b> Lect. Mohammed Hussein"
     )
-    await callback.answer("جارٍ إرسال الملف... 📄")
+    caption_2 = (
+        "🎓 <b>دليل المناقشة الأكاديمية الشامل</b>\n\n"
+        "دليلك العملي ليوم المناقشة (Thesis Defense)، يحتوي على أهم النصائح والاستراتيجيات للتعامل مع أسئلة اللجنة بثقة.\n"
+        "✍️ <b>إعداد:</b> Lect. Mohammed Hussein"
+    )
+
+    await callback.answer("جارٍ إرسال الملفات الخاصة... 🎁")
+    bot = callback.bot
+    chat_id = callback.message.chat.id
+
     try:
-        await callback.message.answer_document(
+        # Send Document 1: Graduation Project Guide
+        await bot.send_document(
+            chat_id=chat_id,
             document=TEACHER_GRADUATION_PROJECT_FILE_ID,
-            caption=caption,
+            caption=caption_1,
+            parse_mode="HTML"
+        )
+
+        # Send Document 2: Thesis Defense Guide (with Back button)
+        await bot.send_document(
+            chat_id=chat_id,
+            document=TEACHER_THESIS_DEFENSE_FILE_ID,
+            caption=caption_2,
             reply_markup=get_library_back_keyboard(),
             parse_mode="HTML"
         )
     except Exception as e:
-        print(f"[Send Document Error] {e}")
-        await callback.bot.send_document(
-            chat_id=callback.message.chat.id,
-            document=TEACHER_GRADUATION_PROJECT_FILE_ID,
-            caption=caption,
-            reply_markup=get_library_back_keyboard(),
-            parse_mode="HTML"
-        )
+        print(f"[Send Teacher Files Error] {e}")
 
 @courses_router.callback_query(F.data == "files_grammar")
 async def handle_files_grammar(callback: CallbackQuery):
