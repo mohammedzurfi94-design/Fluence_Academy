@@ -214,130 +214,103 @@ async def handle_answer_selected(callback: CallbackQuery):
 # 20-Question Diagnostic Placement Test Definition
 # ---------------------------------------------------------------------------
 PLACEMENT_QUESTIONS = [
-    # (قسم القواعد - Grammar)
     {
-        "section": "القواعد (Grammar)",
         "question": "I ___ from Iraq.",
         "options": ["am", "is", "are", "be"],
         "correct": 0
     },
     {
-        "section": "القواعد (Grammar)",
         "question": "She ___ to the university every day.",
         "options": ["go", "goes", "going", "went"],
         "correct": 1
     },
     {
-        "section": "القواعد (Grammar)",
         "question": "We ___ a great play at the theater last night.",
         "options": ["saw", "seen", "seeing", "see"],
         "correct": 0
     },
     {
-        "section": "القواعد (Grammar)",
         "question": "If it rains tomorrow, we ___ the lecture.",
         "options": ["cancel", "will cancel", "cancelled", "would cancel"],
         "correct": 1
     },
     {
-        "section": "القواعد (Grammar)",
         "question": "The research ___ published in 2022.",
         "options": ["was", "is", "has", "had"],
         "correct": 0
     },
     {
-        "section": "القواعد (Grammar)",
         "question": "If I had known about the seminar, I ___.",
         "options": ["would attend", "attended", "would have attended", "will attend"],
         "correct": 2
     },
-
-    # (قسم التلفظ والصوتيات - Pronunciation & Phonetics)
     {
-        "section": "التلفظ والصوتيات (Pronunciation & Phonetics)",
         "question": "Which word has a silent 'b'?",
         "options": ["problem", "debt", "rabbit", "combine"],
         "correct": 1
     },
     {
-        "section": "التلفظ والصوتيات (Pronunciation & Phonetics)",
         "question": "Which word has a different vowel sound?",
         "options": ["meat", "seat", "great", "heat"],
         "correct": 2
     },
     {
-        "section": "التلفظ والصوتيات (Pronunciation & Phonetics)",
         "question": "Which word rhymes with \"tough\"?",
         "options": ["though", "rough", "through", "dough"],
         "correct": 1
     },
     {
-        "section": "التلفظ والصوتيات (Pronunciation & Phonetics)",
-        "question": "In the word \"PHOTOGRAPHER\", which syllable has the main stress?",
+        "question": "In \"PHOTOGRAPHER\", which syllable has the main stress?",
         "options": ["1st", "2nd", "3rd", "4th"],
         "correct": 1
     },
     {
-        "section": "التلفظ والصوتيات (Pronunciation & Phonetics)",
         "question": "Which word contains a silent 'k'?",
         "options": ["ask", "make", "know", "like"],
         "correct": 2
     },
     {
-        "section": "التلفظ والصوتيات (Pronunciation & Phonetics)",
         "question": "Which word has the same vowel sound as \"hair\"?",
         "options": ["hear", "bear", "beer", "fear"],
         "correct": 1
     },
-
-    # (قسم المفردات والمواقف - Vocabulary & Situations)
     {
-        "section": "المفردات والمواقف (Vocabulary & Situations)",
         "question": "\"Would you mind opening the window?\" - \"___\"",
         "options": ["Yes, I mind", "No, not at all", "Yes, please", "No, I don't"],
         "correct": 1
     },
     {
-        "section": "المفردات والمواقف (Vocabulary & Situations)",
-        "question": "The student needs to ___ up his mind about the research topic.",
+        "question": "The student needs to ___ up his mind.",
         "options": ["make", "take", "do", "get"],
         "correct": 0
     },
     {
-        "section": "المفردات والمواقف (Vocabulary & Situations)",
         "question": "I've been studying literature ___ 5 years.",
         "options": ["since", "for", "ago", "from"],
         "correct": 1
     },
     {
-        "section": "المفردات والمواقف (Vocabulary & Situations)",
         "question": "The new policy is on the ___ of collapse.",
         "options": ["edge", "brink", "border", "boundary"],
         "correct": 1
     },
-
-    # (قسم الفهم والتراكيب المتقدمة - Advanced Comprehension & Usage)
     {
-        "section": "الفهم والتراكيب المتقدمة (Advanced Usage)",
         "question": "Seldom ___ such a brilliantly written essay.",
         "options": ["I have read", "have I read", "I read", "did I read"],
         "correct": 1
     },
     {
-        "section": "الفهم والتراكيب المتقدمة (Advanced Usage)",
-        "question": "You ___ have left your keys in the hall; it was locked from the outside.",
+        "question": "You ___ have left your keys in the hall; it was locked.",
         "options": ["mustn't", "shouldn't", "couldn't", "wouldn't"],
         "correct": 2
     },
     {
-        "section": "الفهم والتراكيب المتقدمة (Advanced Usage)",
-        "question": "I can't ___ what the author is trying to say in this paragraph.",
+        "question": "I can't ___ what the author is trying to say.",
         "options": ["make out", "make up", "make off", "make for"],
         "correct": 0
     },
     {
-        "section": "الفهم والتراكيب المتقدمة (Advanced Usage)",
-        "question": "His presentation was completely ___, leaving the audience confused.",
+        "question": "His presentation was completely ___.",
         "options": ["lucid", "opaque", "transparent", "candid"],
         "correct": 1
     }
@@ -346,25 +319,25 @@ PLACEMENT_QUESTIONS = [
 def get_placement_level_info(score: int) -> tuple[str, str]:
     """
     Returns (level_name, target_callback) based on score out of 20:
-    0 - 4: المستوى المبتدئ (Beginner - A1) -> level_a1
-    5 - 8: المستوى الأساسي (Elementary - A2) -> level_a2
-    9 - 12: المستوى قبل المتوسط (Pre-Intermediate - B1) -> level_b1
-    13 - 15: المستوى المتوسط والمتقدم (Intermediate & Upper - B2) -> level_b2
-    16 - 18: المستوى المتقدم (Advanced - C1) -> level_c1
-    19 - 20: مستوى الإتقان التام (Proficiency - C2) -> level_c2
+    0-4: 🌱 Beginner (A1) -> level_a1
+    5-8: 📘 Elementary (A2) -> level_a2
+    9-12: 📙 Pre-Intermediate (B1) -> level_b1
+    13-15: 📕 Intermediate & Upper (B2) -> level_b2
+    16-18: 🎓 Advanced (C1) -> level_c1
+    19-20: 🏆 Proficiency (C2) -> level_c2
     """
     if score <= 4:
-        return "المستوى المبتدئ (Beginner - A1)", "level_a1"
+        return "🌱 Beginner (A1)", "level_a1"
     elif score <= 8:
-        return "المستوى الأساسي (Elementary - A2)", "level_a2"
+        return "📘 Elementary (A2)", "level_a2"
     elif score <= 12:
-        return "المستوى قبل المتوسط (Pre-Intermediate - B1)", "level_b1"
+        return "📙 Pre-Intermediate (B1)", "level_b1"
     elif score <= 15:
-        return "المستوى المتوسط والمتقدم (Intermediate & Upper - B2)", "level_b2"
+        return "📕 Intermediate & Upper (B2)", "level_b2"
     elif score <= 18:
-        return "المستوى المتقدم (Advanced - C1)", "level_c1"
+        return "🎓 Advanced (C1)", "level_c1"
     else:
-        return "مستوى الإتقان التام (Proficiency - C2)", "level_c2"
+        return "🏆 Proficiency (C2)", "level_c2"
 
 def build_placement_question_keyboard(q_idx: int, score: int) -> InlineKeyboardMarkup:
     """Builds clean inline buttons for the given question index and running score."""
@@ -395,7 +368,7 @@ async def handle_placement_test(message: Message):
     """Displays the updated 20-question Placement Test overview and launch button."""
     text = (
         "📝 <b>اختبار تحديد المستوى المتقدم</b>\n\n"
-        "يتكون الاختبار من <b>20 سؤالاً</b> تقيس مستواك في القواعد، المفردات، والتلفظ (Phonetics).\n"
+        "يتكون الاختبار من <b>20 سؤالاً</b> متدرج الصعوبة تقيس مستواك في القواعد، المفردات، والتلفظ (Phonetics).\n"
         "• يرجى اختيار الإجابة الأصح لكل سؤال.\n"
         "• يعتمد تحديد مستواك بدقة على إجاباتك الفردية دون استخدام وسائل مساعدة."
     )
@@ -407,11 +380,10 @@ async def handle_placement_test(message: Message):
 
 @quizzes_router.callback_query(F.data == "start_placement_test")
 async def handle_start_placement_test(callback: CallbackQuery):
-    """Launches Question 1 of the 20-question placement test."""
+    """Launches Question 1 of the 20-question placement test using edit_message_text."""
     first_q = PLACEMENT_QUESTIONS[0]
     text = (
-        f"📝 <b>اختبار تحديد المستوى (السؤال 1 من {len(PLACEMENT_QUESTIONS)})</b>\n"
-        f"📌 <i>القسم: {first_q['section']}</i>\n\n"
+        f"📝 <b>اختبار تحديد المستوى (السؤال 1 من {len(PLACEMENT_QUESTIONS)})</b>\n\n"
         f"❓ <b>{first_q['question']}</b>"
     )
     keyboard = build_placement_question_keyboard(0, 0)
@@ -423,7 +395,7 @@ async def handle_start_placement_test(callback: CallbackQuery):
 
 @quizzes_router.callback_query(F.data.startswith("pt_"))
 async def handle_placement_test_answer(callback: CallbackQuery):
-    """Evaluates question answer, advances through 20 questions, and gives final diagnostic evaluation."""
+    """Evaluates question answer, advances through 20 questions via edit_message_text, and gives final diagnostic evaluation."""
     parts = callback.data.split("_")
     q_idx = int(parts[1])
     selected_opt = int(parts[2])
@@ -438,8 +410,7 @@ async def handle_placement_test_answer(callback: CallbackQuery):
     if next_idx < len(PLACEMENT_QUESTIONS):
         next_q = PLACEMENT_QUESTIONS[next_idx]
         text = (
-            f"📝 <b>اختبار تحديد المستوى (السؤال {next_idx + 1} من {len(PLACEMENT_QUESTIONS)})</b>\n"
-            f"📌 <i>القسم: {next_q['section']}</i>\n\n"
+            f"📝 <b>اختبار تحديد المستوى (السؤال {next_idx + 1} من {len(PLACEMENT_QUESTIONS)})</b>\n\n"
             f"❓ <b>{next_q['question']}</b>"
         )
         keyboard = build_placement_question_keyboard(next_idx, score)
@@ -448,10 +419,10 @@ async def handle_placement_test_answer(callback: CallbackQuery):
         # Placement test completed!
         level_name, target_callback = get_placement_level_info(score)
         result_text = (
-            "📊 <b>نتيجة التقييم الشامل</b>\n\n"
+            "📊 <b>نتيجة اختبار تحديد المستوى | Placement Test Result</b>\n\n"
             f"لقد أجبت بشكل صحيح على <b>{score}</b> من أصل {len(PLACEMENT_QUESTIONS)} سؤالاً.\n"
             f"مستواك اللغوي الحالي هو: <b>{level_name}</b>\n\n"
-            "🎯 الكورس التدريبي الموصى به لك هو كورس اللغة العامة لهذا المستوى، حيث سيعمل على تطوير نقاط ضعفك في القواعد، المفردات، والتلفظ."
+            "🎯 الكورس التدريبي الموصى به لك هو كورس اللغة العامة لهذا المستوى، حيث سيعمل على تطوير نقاط قوتك ومعالجة نقاط ضعفك في القواعد، المفردات، والتلفظ."
         )
         result_keyboard = [
             [InlineKeyboardButton(text="📖 عرض تفاصيل كورس مستواي", callback_data=target_callback)],
