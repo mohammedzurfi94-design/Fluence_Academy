@@ -18,14 +18,15 @@ from app.dashboard.admin_app import admin_app
 
 async def start_web_dashboard():
     """Starts the FastAPI Admin Portal compatible with Render and Localhost."""
-    listen_port = int(os.environ.get("PORT", settings.PORT or settings.ADMIN_PORT))
+    listen_port = int(os.environ.get("PORT", settings.PORT or settings.ADMIN_PORT or 8000))
     listen_host = "0.0.0.0"
 
+    print(f"🌐 Admin Dashboard listening on : {listen_host}:{listen_port}")
     config = uvicorn.Config(
         app=admin_app,
         host=listen_host,
         port=listen_port,
-        log_level="warning"
+        log_level="info"
     )
     server = uvicorn.Server(config)
     await server.serve()
@@ -48,36 +49,40 @@ async def start_telegram_bot():
             except Exception:
                 pass
 
-async def main():
-    print("=" * 65)
-    print("🎓 FLUENCE ACADEMY SYSTEM - UNIFIED SERVER")
-    print("=" * 65)
+async def init_and_run_bot():
+    """Initializes database and runs Telegram Bot concurrently with web dashboard."""
+    try:
+        print("\n[Step 1/2] Initializing Database & Verifying Tables...")
+        await init_database()
+        print("✅ Database verified and ready.")
+    except Exception as e:
+        print(f"⚠️ Warning: Database initialization warning: {e}")
 
-    # 1. Initialize Database Tables and Default Content
-    print("\n[Step 1/3] Initializing Database & Verifying Tables...")
-    await init_database()
-
-    # 2. Check bot token
     if not settings.TELEGRAM_BOT_TOKEN or "YOUR_" in settings.TELEGRAM_BOT_TOKEN:
-        print("\n⚠️ Telegram Bot Token is not set in .env. Bot will not start.")
+        print("\n⚠️ Telegram Bot Token is not configured. Bot will not start.")
         return
 
-    # 3. Print access information
-    print("\n[Step 2/3] Launching Web Admin Dashboard...")
-    print(f"🌐 Admin Dashboard URL : http://{settings.ADMIN_HOST}:{settings.ADMIN_PORT}")
-    print(f"👤 Username            : {settings.DEFAULT_ADMIN_USERNAME}")
-    print(f"🔑 Password            : {settings.DEFAULT_ADMIN_PASSWORD}")
+    print(f"\n[Step 2/2] Launching Telegram Bot...")
+    print(f"📢 Channel Gateway : {settings.REQUIRED_TELEGRAM_CHANNEL}")
+    await start_telegram_bot()
 
-    print("\n[Step 3/3] Launching Telegram Bot...")
-    print(f"📢 Channel Gateway     : {settings.REQUIRED_TELEGRAM_CHANNEL}")
-    print("\n🚀 Both the Web Dashboard and Telegram Bot are now running concurrently!")
-    print("   Press Ctrl+C at any time to shut down the server safely.")
+async def main():
+    print("=" * 65)
+    print("🎓 FLUENCE ACADEMY SYSTEM - UNIFIED SERVER (CLOUD READY)")
+    print("=" * 65)
+
+    listen_port = int(os.environ.get("PORT", settings.PORT or settings.ADMIN_PORT or 8000))
+    listen_host = "0.0.0.0"
+    print(f"🌐 Binding Web Port Immediately to: {listen_host}:{listen_port}")
+    print(f"👤 Admin Username                : {settings.DEFAULT_ADMIN_USERNAME}")
+    print(f"🔑 Admin Password                : {settings.DEFAULT_ADMIN_PASSWORD}")
     print("=" * 65 + "\n")
 
-    # Run both services simultaneously
+    # Run Web Server immediately so Render port scanning passes instantly,
+    # while DB verification and Telegram bot launch concurrently.
     await asyncio.gather(
         start_web_dashboard(),
-        start_telegram_bot()
+        init_and_run_bot()
     )
 
 if __name__ == "__main__":

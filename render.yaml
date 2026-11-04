@@ -1,23 +1,27 @@
 services:
-  # 1. Fluence Academy Unified Service (Telegram Bot + Admin Dashboard)
   - type: web
     name: fluence-academy
     env: python
     buildCommand: pip install -r requirements.txt
     startCommand: python run.py
     plan: free
+    healthCheckPath: /health
     envVars:
       - key: APP_ENV
         value: production
+      - key: ADMIN_HOST
+        value: "0.0.0.0"
+      - key: ADMIN_PORT
+        value: "8000"
       - key: TELEGRAM_BOT_TOKEN
-        sync: false
+        value: "9028321446:AAEFowZp46buNvXLfWDyLsMaGKIqyK1AL80"
       - key: REQUIRED_TELEGRAM_CHANNEL
-        sync: false
+        value: "@FluenceEnglish"
       - key: DATABASE_URL
-        sync: false
+        value: "postgresql+asyncpg://postgres.vjmcxmkrknunbocvwren:1m2m3m4m5m6m@aws-1-eu-central-1.pooler.supabase.com:6543/postgres"
       - key: DEFAULT_ADMIN_USERNAME
-        value: admin
+        value: "admin"
       - key: DEFAULT_ADMIN_PASSWORD
-        sync: false
+        value: "adminpassword123"
       - key: AI_ENABLED
         value: "false"
