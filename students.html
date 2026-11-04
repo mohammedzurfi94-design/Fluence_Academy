@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}Students & Subscriptions{% endblock %}
+{% block header_title %}Student Management & Subscriptions{% endblock %}
+
+{% block content %}
+<div class="space-y-6 max-w-7xl mx-auto">
+
+    <!-- Header Actions -->
+    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+            <h3 class="text-base font-bold text-gray-900">Registered Students</h3>
+            <p class="text-xs text-gray-500 mt-0.5">Manage student subscriptions, view progress, and control course access.</p>
+        </div>
+        <div class="text-xs text-gray-500 bg-white border border-gray-200 px-3.5 py-2 rounded-xl shadow-sm">
+            Total Students: <b class="text-indigo-600">{{ students|length }}</b>
+        </div>
+    </div>
+
+    <!-- Students Table Card -->
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+                <thead class="bg-gray-50/75 text-gray-500 uppercase tracking-wider font-semibold border-b border-gray-100">
+                    <tr>
+                        <th class="py-4 px-6">Student ID</th>
+                        <th class="py-4 px-6">Full Name</th>
+                        <th class="py-4 px-6">Telegram Info</th>
+                        <th class="py-4 px-6">Subscription Tier</th>
+                        <th class="py-4 px-6">Status</th>
+                        <th class="py-4 px-6">Joined Date</th>
+                        <th class="py-4 px-6 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    {% for item in students_data %}
+                    <tr class="hover:bg-gray-50/50 transition">
+                        <td class="py-4 px-6 font-mono font-medium text-slate-700">
+                            <code>FA-{{ "%04d"|format(item.student.id) }}</code>
+                        </td>
+                        <td class="py-4 px-6">
+                            <div class="font-semibold text-gray-900">{{ item.student.full_name }}</div>
+                            <div class="text-gray-400 text-[11px]">{{ item.student.role|capitalize }}</div>
+                        </td>
+                        <td class="py-4 px-6">
+                            <div class="text-gray-700">@{{ item.student.username or 'none' }}</div>
+                            <div class="text-gray-400 font-mono text-[11px]">ID: {{ item.student.telegram_id }}</div>
+                        </td>
+                        <td class="py-4 px-6">
+                            {% set plan = item.sub.plan_type|upper if item.sub else 'FREE' %}
+                            <span class="px-2.5 py-1 rounded-full font-bold text-[10px] uppercase tracking-wider
+                                {% if plan == 'VIP' %}bg-amber-100 text-amber-800
+                                {% elif plan == 'STANDARD' %}bg-blue-100 text-blue-800
+                                {% else %}bg-gray-100 text-gray-700{% endif %}">
+                                {{ plan }}
+                            </span>
+                        </td>
+                        <td class="py-4 px-6">
+                            {% set status = item.sub.status if item.sub else 'active' %}
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider
+                                {% if status == 'active' %}bg-emerald-50 text-emerald-700
+                                {% else %}bg-rose-50 text-rose-700{% endif %}">
+                                <span class="w-1.5 h-1.5 rounded-full {% if status == 'active' %}bg-emerald-500{% else %}bg-rose-500{% endif %}"></span>
+                                {{ status }}
+                            </span>
+                        </td>
+                        <td class="py-4 px-6 text-gray-500">
+                            {{ item.student.created_at.strftime('%Y-%m-%d') }}
+                        </td>
+                        <td class="py-4 px-6 text-right">
+                            <form action="/students/{{ item.student.id }}/update-plan" method="POST" class="inline-flex items-center gap-2">
+                                <select name="plan_type" class="text-[11px] bg-gray-50 border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:border-indigo-600">
+                                    <option value="free" {% if item.sub and item.sub.plan_type == 'free' %}selected{% endif %}>Free</option>
+                                    <option value="standard" {% if item.sub and item.sub.plan_type == 'standard' %}selected{% endif %}>Standard</option>
+                                    <option value="vip" {% if item.sub and item.sub.plan_type == 'vip' %}selected{% endif %}>VIP / Premium</option>
+                                </select>
+                                <button type="submit" class="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-medium rounded-lg text-[11px] transition">
+                                    Update
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="py-12 text-center text-gray-400 text-xs">
+                            No students registered in the database yet.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
