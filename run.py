@@ -1,5 +1,11 @@
 import asyncio
 import sys
+import os
+import uvicorn
+from app.core.config import settings
+from app.database.init_db import init_database
+from app.bot.bot_instance import create_bot, create_dispatcher
+from app.dashboard.admin_app import admin_app
 
 # Ensure UTF-8 output on Windows consoles
 if sys.platform == "win32":
@@ -9,16 +15,9 @@ if sys.platform == "win32":
     except Exception:
         pass
 
-import uvicorn
-from app.core.config import settings
-from app.database.init_db import init_database
-import os
-from app.bot.bot_instance import create_bot, create_dispatcher
-from app.dashboard.admin_app import admin_app
-
 async def start_web_dashboard():
     """Starts the FastAPI Admin Portal compatible with Render and Localhost."""
-    listen_port = int(os.environ.get("PORT", settings.PORT or settings.ADMIN_PORT or 8000))
+    listen_port = int(os.environ.get("PORT", 8080))
     listen_host = "0.0.0.0"
 
     print(f"🌐 Admin Dashboard listening on : {listen_host}:{listen_port}")
@@ -71,7 +70,7 @@ async def main():
     print("🎓 FLUENCE ACADEMY SYSTEM - UNIFIED SERVER (CLOUD READY)")
     print("=" * 65)
 
-    listen_port = int(os.environ.get("PORT", settings.PORT or settings.ADMIN_PORT or 8000))
+    listen_port = int(os.environ.get("PORT", 8080))
     listen_host = "0.0.0.0"
     print(f"🌐 Binding Web Port Immediately to: {listen_host}:{listen_port}")
     print(f"👤 Admin Username                : {settings.DEFAULT_ADMIN_USERNAME}")
