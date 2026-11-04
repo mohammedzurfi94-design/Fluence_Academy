@@ -441,6 +441,8 @@ async def handle_study_materials_library(message: Message):
     )
     await message.answer(text, reply_markup=get_library_keyboard(), parse_mode="HTML")
 
+TEACHER_GRADUATION_PROJECT_FILE_ID = "BQACAgIAAxkBAAFXO51q65mbmqCmN5Iicsz9YPzcBtOx5wACxZ4AAjy_wUrqdXkyS-ifnj0E"
+
 @courses_router.callback_query(F.data == "back_to_library")
 async def handle_back_to_library(callback: CallbackQuery):
     """Returns to the digital library categories menu."""
@@ -449,20 +451,39 @@ async def handle_back_to_library(callback: CallbackQuery):
         "مرحباً بك في مكتبة الأكاديمية. اختر القسم الذي ترغب بتصفح مواده من القائمة أدناه:"
     )
     try:
-        await callback.message.edit_text(text, reply_markup=get_library_keyboard(), parse_mode="HTML")
+        if callback.message and callback.message.document:
+            await callback.message.answer(text, reply_markup=get_library_keyboard(), parse_mode="HTML")
+        else:
+            await callback.message.edit_text(text, reply_markup=get_library_keyboard(), parse_mode="HTML")
     except Exception:
         await callback.message.answer(text, reply_markup=get_library_keyboard(), parse_mode="HTML")
     await callback.answer()
 
 @courses_router.callback_query(F.data == "files_teacher")
 async def handle_files_teacher(callback: CallbackQuery):
-    """Displays placeholder for Teacher's Exclusive Files."""
-    text = (
-        "🎁 <b>الملفات الخاصة بالأستاذ (Teacher's Exclusive Files)</b>\n\n"
-        "جاري تجهيز الملفات الحصرية، عروض الماستر كلاس، وملفات الـ PDF التعليمية الخاصة بأكاديمية Fluence."
+    """Sends Teacher's Exclusive File: Comprehensive Graduation Project Guide."""
+    caption = (
+        "📑 <b>الدليل الشامل لكتابة مشروع التخرج</b>\n\n"
+        "دليل متكامل يوضح الخطوات الأساسية ومنهجية البحث في مجالات الأدب، اللغة، وطرائق التدريس.\n"
+        "✍️ <b>إعداد:</b> Lect. Mohammed Hussein"
     )
-    await callback.message.edit_text(text, reply_markup=get_library_back_keyboard(), parse_mode="HTML")
-    await callback.answer()
+    await callback.answer("جارٍ إرسال الملف... 📄")
+    try:
+        await callback.message.answer_document(
+            document=TEACHER_GRADUATION_PROJECT_FILE_ID,
+            caption=caption,
+            reply_markup=get_library_back_keyboard(),
+            parse_mode="HTML"
+        )
+    except Exception as e:
+        print(f"[Send Document Error] {e}")
+        await callback.bot.send_document(
+            chat_id=callback.message.chat.id,
+            document=TEACHER_GRADUATION_PROJECT_FILE_ID,
+            caption=caption,
+            reply_markup=get_library_back_keyboard(),
+            parse_mode="HTML"
+        )
 
 @courses_router.callback_query(F.data == "files_grammar")
 async def handle_files_grammar(callback: CallbackQuery):
