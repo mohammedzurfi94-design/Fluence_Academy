@@ -104,7 +104,7 @@ async def handle_start(message: Message):
     except Exception as e:
         print(f"[Send Message Error] {e}")
 
-@start_router.message(F.text.in_(["✨ عن الأكاديمية | About Fluence"]))
+@start_router.message(F.text.in_(["✨ عن الأكاديمية | About Fluence", "عن الأكاديمية", "About Fluence"]))
 async def handle_about_fluence(message: Message):
     """Displays prestigious overview about Fluence Academy with founder credentials."""
     about_text = (
@@ -140,7 +140,7 @@ async def handle_about_fluence(message: Message):
     ]
     await message.answer(about_text, reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard), parse_mode="HTML")
 
-@start_router.message(F.text.in_(["💬 الدعم والتواصل | Help & Support", "❓ Help & Support"]))
+@start_router.message(F.text.in_(["💬 الدعم والتواصل | Help & Support", "الدعم والتواصل", "Help & Support", "❓ Help & Support"]))
 async def handle_help_support(message: Message):
     """Provides contact links with administration and official teacher support."""
     help_text = (

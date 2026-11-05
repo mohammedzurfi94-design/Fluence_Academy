@@ -11,7 +11,9 @@ from app.bot.keyboards.main_menu import (
     get_general_english_keyboard,
     get_academic_english_keyboard,
     get_exam_details_keyboard,
-    get_sub_level_keyboard
+    get_sub_level_keyboard,
+    get_library_keyboard,
+    get_library_back_keyboard
 )
 from app.services.channel_service import check_user_channel_membership
 from app.core.config import settings
@@ -21,7 +23,7 @@ courses_router = Router(name="courses_router")
 # ---------------------------------------------------------------------------
 # 1. Main Courses Catalog Handler
 # ---------------------------------------------------------------------------
-@courses_router.message(F.text.in_(["📚 الدورات التدريبية | Courses", "📚 Browse Courses"]))
+@courses_router.message(F.text.in_(["📚 الدورات التدريبية | Courses", "الدورات التدريبية", "Courses", "📚 Browse Courses"]))
 async def handle_courses_catalog_message(message: Message):
     """Displays the main courses catalog with interactive inline categories."""
     text = (
@@ -59,10 +61,13 @@ async def handle_back_to_main_menu(callback: CallbackQuery):
 async def handle_cat_general(callback: CallbackQuery):
     """Displays General English level selection."""
     text = (
-        "🗣️ <b>كورسات اللغة الإنجليزية العامة | General English</b>\n\n"
-        "سلسلة تدريبية متكاملة تهدف إلى بناء طلاقتك التعبيرية والشفهية وتطوير مهارات "
-        "المحادثة، الاستماع، القواعد، والنطق السليم خطوة بخطوة وفق الإطار الأوروبي المشترك (CEFR).\n\n"
-        "اختر مستواك المطلوب لمعرفة التفاصيل والبدء: 👇"
+        "🗣️ <b>كورسات اللغة العامة | General English</b>\n\n"
+        "تم تصميم هذه البرامج لتطوير مهاراتك اللغوية الشاملة (التحدث، الاستماع، القراءة، والكتابة، "
+        "بالإضافة إلى التدريب على التلفظ الصحيح وضبط اللكنة Accent) وبناء ثقتك في استخدام اللغة "
+        "في الحياة اليومية والمهنية. نعتمد في ذلك على مناهج تفاعلية مُعدة خصيصاً وتخضع للتطوير "
+        "المستمر لتناسب كافة المستويات.\n\n"
+        "📍 <b>الرجاء اختيار مستواك الحالي من القائمة أدناه لمعرفة تفاصيل الدورة "
+        "(إذا لم تكن متأكداً من مستواك، يمكنك إجراء اختبار تحديد المستوى من القائمة الرئيسية):</b>"
     )
     await callback.message.edit_text(text, reply_markup=get_general_english_keyboard(), parse_mode="HTML")
     await callback.answer()
@@ -100,7 +105,7 @@ async def handle_level_a2(callback: CallbackQuery):
 @courses_router.callback_query(F.data == "level_b1")
 async def handle_level_b1(callback: CallbackQuery):
     text = (
-        "📈 <b>المستوى قبل المتوسط | Pre-Intermediate (B1)</b>\n\n"
+        "📙 <b>المستوى قبل المتوسط | Pre-Intermediate (B1)</b>\n\n"
         "📌 <b>لمن هذا المستوى؟</b>\n"
         "لمن يسعى للتخلص من التردد والترجمة الذهنية وبدء التحدث بطلاقة وتلقائية طبيعية.\n\n"
         "🎯 <b>أهم المخرجات والمهارات:</b>\n"
@@ -115,7 +120,7 @@ async def handle_level_b1(callback: CallbackQuery):
 @courses_router.callback_query(F.data == "level_b2")
 async def handle_level_b2(callback: CallbackQuery):
     text = (
-        "🏆 <b>المستوى المتقدم | Intermediate & Upper (B2)</b>\n\n"
+        "📕 <b>المستوى المتوسط | Intermediate & Upper (B2)</b>\n\n"
         "📌 <b>لمن هذا المستوى؟</b>\n"
         "للوصول إلى مرحلة الاستقلال اللغوي الكامل والجاهزية المهنية والأكاديمية العالية.\n\n"
         "🎯 <b>أهم المخرجات والمهارات:</b>\n"
@@ -125,6 +130,46 @@ async def handle_level_b2(callback: CallbackQuery):
         "• إتقان التعبيرات الاصطلاحية (Idioms) والمفردات المتقدمة."
     )
     await callback.message.edit_text(text, reply_markup=get_sub_level_keyboard("cat_general"), parse_mode="HTML")
+    await callback.answer()
+
+@courses_router.callback_query(F.data == "level_c1")
+async def handle_level_c1(callback: CallbackQuery):
+    text = (
+        "🎓 <b>المستوى المتقدم | Advanced (C1)</b>\n\n"
+        "المرحلة المتقدمة التي تؤهلك للاستخدام الفعال والمرن للغة الإنجليزية في المجالات الأكاديمية والمهنية الرفيعة:\n"
+        "• فهم مجموعة واسعة من النصوص الطويلة والمعقدة والتعرف على المعاني الضمنية والعميقة.\n"
+        "• التعبير عن الأفكار بطلاقة وعفوية تامة دون بحث ملحوظ عن المفردات والتراكيب.\n"
+        "• استخدام اللغة بمرونة وفعالية في الأغراض الاجتماعية، الأكاديمية، والمهنية المرموقة.\n"
+        "• إنتاج نصوص واضحة، حسنة البنية، ومفصلة في أصعب المواضيع البحثية والمهنية.\n\n"
+        "📩 <b>للتسجيل والاستفسار:</b>"
+    )
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="💬 التواصل مع الأستاذ للتسجيل", url="https://t.me/Fluenceacademy")],
+            [InlineKeyboardButton(text="🔙 رجوع | Back", callback_data="cat_general")]
+        ]
+    )
+    await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
+    await callback.answer()
+
+@courses_router.callback_query(F.data == "level_c2")
+async def handle_level_c2(callback: CallbackQuery):
+    text = (
+        "🏆 <b>مستوى الإتقان التام (Proficiency - C2)</b>\n\n"
+        "هو أعلى درجات إتقان اللغة الإنجليزية. يوصلك هذا الكورس إلى مستوى يضاهي المتحدث الأصلي (Native Speaker) ويهدف إلى:\n"
+        "• الفهم التلقائي التام لكل ما تقرأه أو تسمعه مهما كان معقداً أو تخصصياً وبدون أي مجهود.\n"
+        "• التعبير بطلاقة مطلقة ودقة متناهية، مع القدرة على تمييز أدق الفروق في المعاني (Nuances) في أصعب المواقف الأكاديمية والمهنية.\n"
+        "• تلخيص المعلومات، إعادة صياغتها، وتركيب الحجج والنقاشات النقدية من مصادر متعددة بمرونة تامة.\n"
+        "• إتقان التلفظ (Phonetics) بلكنة أصيلة لا تشوبها شائبة.\n\n"
+        "📩 <b>للتسجيل والاستفسار:</b>"
+    )
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="💬 التواصل مع الأستاذ للتسجيل", url="https://t.me/Fluenceacademy")],
+            [InlineKeyboardButton(text="🔙 رجوع | Back", callback_data="cat_general")]
+        ]
+    )
+    await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
     await callback.answer()
 
 # ---------------------------------------------------------------------------
@@ -145,41 +190,58 @@ async def handle_cat_academic(callback: CallbackQuery):
 @courses_router.callback_query(F.data == "acad_writing")
 async def handle_acad_writing(callback: CallbackQuery):
     text = (
-        "✍️ <b>الكتابة الأكاديمية والبحوث | Academic Writing & Research</b>\n\n"
-        "📌 <b>محاور المسار التدريبي:</b>\n"
-        "• هيكلة الأوراق البحثية، رسائل الماجستير، وأطاريح الدكتوراه وفق أحدث المعايير.\n"
-        "• صياغة الملخصات (Abstracts)، المقدمة، ومراجعة الأدبيات (Literature Review).\n"
-        "• أساليب التوثيق المعتمدة عالمياً (APA, Harvard, IEEE, Chicago).\n"
-        "• تقنيات إعادة الصياغة (Paraphrasing) المتقنة وتجنب الاستلال والسرقة الأدبية (Plagiarism).\n"
-        "• استخدام العبارات الانتقالية والروابط الأكاديمية الاحترافية (Signposting)."
+        "✍️ <b>الكتابة الأكاديمية والبحوث (Academic Writing & Research)</b>\n\n"
+        "مسار متقدم يهدف إلى تطوير مهاراتك في كتابة المقالات الأكاديمية (Essays) والأبحاث الرصينة (Research Papers). نركز في هذا الكورس على:\n"
+        "• هيكلية البحث الأكاديمي وصياغة الأطروحة (Thesis Statement).\n"
+        "• بناء الحجج المنطقية وتجنب الانتحال العلمي (Plagiarism).\n"
+        "• استخدام المفردات الأكاديمية الدقيقة وأنظمة الاقتباس العالمية (مثل APA و MLA).\n\n"
+        "📩 <b>للتسجيل والاستفسار:</b>"
     )
-    await callback.message.edit_text(text, reply_markup=get_sub_level_keyboard("cat_academic"), parse_mode="HTML")
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="💬 التواصل مع الأستاذ للتسجيل", url="https://t.me/Fluenceacademy")],
+            [InlineKeyboardButton(text="🔙 رجوع | Back", callback_data="cat_academic")]
+        ]
+    )
+    await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
     await callback.answer()
 
 @courses_router.callback_query(F.data == "acad_presentations")
 async def handle_acad_presentations(callback: CallbackQuery):
     text = (
-        "🎤 <b>مهارات العرض والإلقاء | Academic Presentations</b>\n\n"
-        "📌 <b>محاور المسار التدريبي:</b>\n"
-        "• إعداد وتصميم شرائح العرض العلمي (Slides) بطريقة جذابة ومختصرة.\n"
-        "• أسلوب الخطاب الأكاديمي ولغة الجسد الاحترافية في المؤتمرات والندوات والسمينارات.\n"
-        "• فن التحدث أمام لجان المناقشة وإدارة جلسات الأسئلة والأجوبة (Q&A) بكل ثقة وهدوء.\n"
-        "• التحكم بنبرة الصوت وتوصيل الفكرة البحثية بأعلى وضوح ممكن."
+        "🎤 <b>مهارات العرض والإلقاء (Academic Presentations)</b>\n\n"
+        "صُمم هذا الكورس لإعدادك للوقوف بثقة في السمينارات ومناقشات البحوث (Thesis Defense):\n"
+        "• تصميم عروض تقديمية (Presentations) احترافية ومؤثرة.\n"
+        "• استراتيجيات التحدث الأكاديمي أمام الجمهور وإدارة لغة الجسد.\n"
+        "• كيفية التعامل مع أسئلة المناقشين (لجان المناقشة) والدفاع عن أفكارك بأسلوب علمي رصين.\n\n"
+        "📩 <b>للتسجيل والاستفسار:</b>"
     )
-    await callback.message.edit_text(text, reply_markup=get_sub_level_keyboard("cat_academic"), parse_mode="HTML")
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="💬 التواصل مع الأستاذ للتسجيل", url="https://t.me/Fluenceacademy")],
+            [InlineKeyboardButton(text="🔙 رجوع | Back", callback_data="cat_academic")]
+        ]
+    )
+    await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
     await callback.answer()
 
 @courses_router.callback_query(F.data == "acad_phonetics")
 async def handle_acad_phonetics(callback: CallbackQuery):
     text = (
-        "🗣️ <b>النطق والتجويد اللفظي | Pronunciation & Phonetics</b>\n\n"
-        "📌 <b>محاور المسار التدريبي:</b>\n"
-        "• دراسة مخارج الحروف الإنجليزية والرموز الصوتية العالمية (IPA).\n"
-        "• نبر الكلمات والجمل (Word Stress & Sentence Stress) لإعطاء المعنى الصحيح.\n"
-        "• التنغيم (Intonation) والربط الصوتي الطبيعي بين الكلمات (Connected Speech).\n"
-        "• معالجة الأخطاء الشائعة في النطق العربي وتحقيق مخارج صوتية واضحة ومريحة."
+        "🗣 <b>النطق والتجويد اللفظي (Pronunciation & Phonetics)</b>\n\n"
+        "كورس تخصصي دقيق، ومثالي لطلبة وخريجي أقسام اللغة الإنجليزية والباحثين:\n"
+        "• دراسة متعمقة لعلم الصوتيات (Phonetics) ومخارج الحروف الصحيحة.\n"
+        "• التدريب على الكلام المتصل (Connected Speech) والتنغيم اللفظي (Intonation).\n"
+        "• التخلص من أخطاء النطق الشائعة وضبط اللكنة للوصول إلى النطق الأكاديمي الاحترافي.\n\n"
+        "📩 <b>للتسجيل والاستفسار:</b>"
     )
-    await callback.message.edit_text(text, reply_markup=get_sub_level_keyboard("cat_academic"), parse_mode="HTML")
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="💬 التواصل مع الأستاذ للتسجيل", url="https://t.me/Fluenceacademy")],
+            [InlineKeyboardButton(text="🔙 رجوع | Back", callback_data="cat_academic")]
+        ]
+    )
+    await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
     await callback.answer()
 
 # ---------------------------------------------------------------------------
@@ -189,19 +251,23 @@ async def handle_acad_phonetics(callback: CallbackQuery):
 async def handle_course_competitive(callback: CallbackQuery):
     """Displays detailed overview for the Competitive Exam with direct contact button."""
     text = (
-        "🎯 <b>كورس الامتحان التنافسي للدراسات العليا | Competitive Exam</b>\n\n"
-        "برنامج تدريبي مكثف مخصص للطلبة المتقدمين للامتحان التنافسي للقبول في الدراسات العليا "
-        "(دبلوم عالي، ماجستير، دكتوراه) في كافة الجامعات العراقية.\n\n"
-        "📌 <b>أهم محاور ومميزات الدورة:</b>\n"
-        "• تحليل شامل للنماذج الوزارية المعتمدة وأسئلة الامتحانات التنافسية للأعوام السابقة.\n"
-        "• تدريب مكثف على مهارات القواعد والتركيب اللغوي (Grammar & Structure).\n"
-        "• استراتيجيات حل نصوص القراءة السريعة واكتشاف الإجابات الدقيقة (Reading Comprehension).\n"
-        "• اختبارات إلكترونية تجريبية تفاعلية تحاكي ضغط ونظام الاختبار الحقيقي.\n"
-        "• مذكرات وملازم وملخصات حصرية وشاملة للمشاركين.\n\n"
-        "👨‍🏫 <b>إشراف وتدريس:</b> الأستاذ محمد حسين\n\n"
-        "للحجز والاستفسار عن موعد انطلاق الدورة والاشتراك المباشر، تواصل معنا عبر الزر أدناه: 👇"
+        "🎯 <b>كورس الامتحان التنافسي للدراسات العليا</b>\n\n"
+        "دورة المراجعة المركزة والمكثفة للمتقدمين للدراسات العليا (الماجستير والدكتوراه) "
+        "في تخصص الأدب الإنجليزي في مختلف جامعات العراق.\n\n"
+        "<b>تتضمن الدورة:</b>\n"
+        "• مراجعة شاملة ودقيقة لمحاور الأدب المطلوبة.\n"
+        "• تحليل نماذج الأسئلة للسنوات السابقة لمختلف الجامعات.\n"
+        "• التدريب على استراتيجيات الحل وتجاوز العقبات التحليلية والنقدية.\n\n"
+        "📩 <b>للاستفسار عن مواعيد بدء الدورة القادمة وآلية التسجيل، يرجى التواصل المباشر مع الأستاذ:</b>"
     )
-    await callback.message.edit_text(text, reply_markup=get_exam_details_keyboard("https://t.me/Alzurfi1"), parse_mode="HTML")
+    await callback.message.edit_text(
+        text,
+        reply_markup=get_exam_details_keyboard(
+            contact_url="https://t.me/Alzurfi1",
+            button_text="💬 التواصل مع الأستاذ للتسجيل"
+        ),
+        parse_mode="HTML"
+    )
     await callback.answer()
 
 @courses_router.callback_query(F.data == "course_inelt")
@@ -364,30 +430,100 @@ async def handle_download_material(callback: CallbackQuery):
     )
 
 # ---------------------------------------------------------------------------
-# 6. Study Files & Materials Library Handler
+# 6. Study Files & Materials Digital Library Handlers
 # ---------------------------------------------------------------------------
-@courses_router.message(F.text.in_(["📁 الملفات والمواد | Study Files & Materials"]))
+@courses_router.message(F.text.in_(["📁 الملفات والمواد | Study Files & Materials", "الملفات والمواد", "Study Files & Materials"]))
 async def handle_study_materials_library(message: Message):
-    """Displays the study materials library with downloadable handouts and summaries."""
-    async with AsyncSessionLocal() as session:
-        query = select(LessonMaterial).limit(10)
-        result = await session.execute(query)
-        materials = result.scalars().all()
-
+    """Displays the digital library categories."""
     text = (
-        "📁 <b>مكتبة الملفات والمواد الدراسية | Study Files & Materials</b>\n\n"
-        "أهلاً بك في المكتبة الرقمية لأكاديمية Fluence.\n"
-        "تجد هنا ملخصات القواعد، المذكرات التخصصية، وجداول المفردات المعتمدة الجاهزة للتحميل المباشر بصيغة PDF.\n\n"
+        "📁 <b>المكتبة الرقمية | Fluence Digital Library</b>\n\n"
+        "مرحباً بك في مكتبة الأكاديمية. اختر القسم الذي ترغب بتصفح مواده من القائمة أدناه:"
+    )
+    await message.answer(text, reply_markup=get_library_keyboard(), parse_mode="HTML")
+
+TEACHER_GRADUATION_PROJECT_FILE_ID = "BQACAgIAAxkBAAFXO51q65mbmqCmN5Iicsz9YPzcBtOx5wACxZ4AAjy_wUrqdXkyS-ifnj0E"
+TEACHER_THESIS_DEFENSE_FILE_ID = "BQACAgIAAxkBAAFXO6Nq65pfns8uqStnOsFaOWIh_KSNLwACx54AAjy_wUqearFEUlBD3j0E"
+
+@courses_router.callback_query(F.data == "back_to_library")
+async def handle_back_to_library(callback: CallbackQuery):
+    """Returns to the digital library categories menu."""
+    text = (
+        "📁 <b>المكتبة الرقمية | Fluence Digital Library</b>\n\n"
+        "مرحباً بك في مكتبة الأكاديمية. اختر القسم الذي ترغب بتصفح مواده من القائمة أدناه:"
+    )
+    try:
+        if callback.message and callback.message.document:
+            await callback.message.answer(text, reply_markup=get_library_keyboard(), parse_mode="HTML")
+        else:
+            await callback.message.edit_text(text, reply_markup=get_library_keyboard(), parse_mode="HTML")
+    except Exception:
+        await callback.message.answer(text, reply_markup=get_library_keyboard(), parse_mode="HTML")
+    await callback.answer()
+
+@courses_router.callback_query(F.data == "files_teacher")
+async def handle_files_teacher(callback: CallbackQuery):
+    """Sends Teacher's Exclusive Files: Graduation Project Guide and Thesis Defense Guide."""
+    caption_1 = (
+        "📑 <b>الدليل الشامل لكتابة مشروع التخرج</b>\n\n"
+        "دليل متكامل يوضح الخطوات الأساسية ومنهجية البحث في مجالات الأدب، اللغة، وطرائق التدريس.\n"
+        "✍️ <b>إعداد:</b> Lect. Mohammed Hussein"
+    )
+    caption_2 = (
+        "🎓 <b>دليل المناقشة الأكاديمية الشامل</b>\n\n"
+        "دليلك العملي ليوم المناقشة (Thesis Defense)، يحتوي على أهم النصائح والاستراتيجيات للتعامل مع أسئلة اللجنة بثقة.\n"
+        "✍️ <b>إعداد:</b> Lect. Mohammed Hussein"
     )
 
-    keyboard = []
-    if materials:
-        text += "اختر الملف الذي تود تحميله مباشرة إلى جهازك: 👇"
-        for mat in materials:
-            keyboard.append([InlineKeyboardButton(text=f"📄 تحميل {mat.title}", callback_data=f"get_mat_{mat.id}")])
-    else:
-        text += "يتم حالياً رفع وتجهيز الحقائب والملخصات من قبل إدارة الأكاديمية. سيتم إشعاركم في القناة عند توفر كل ملف جديد!"
+    await callback.answer("جارٍ إرسال الملفات الخاصة... 🎁")
+    bot = callback.bot
+    chat_id = callback.message.chat.id
 
-    keyboard.append([InlineKeyboardButton(text="📢 القناة الرسمية | Official Channel", url="https://t.me/FluenceEnglish")])
+    try:
+        # Send Document 1: Graduation Project Guide
+        await bot.send_document(
+            chat_id=chat_id,
+            document=TEACHER_GRADUATION_PROJECT_FILE_ID,
+            caption=caption_1,
+            parse_mode="HTML"
+        )
 
-    await message.answer(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard), parse_mode="HTML")
+        # Send Document 2: Thesis Defense Guide (with Back button)
+        await bot.send_document(
+            chat_id=chat_id,
+            document=TEACHER_THESIS_DEFENSE_FILE_ID,
+            caption=caption_2,
+            reply_markup=get_library_back_keyboard(),
+            parse_mode="HTML"
+        )
+    except Exception as e:
+        print(f"[Send Teacher Files Error] {e}")
+
+@courses_router.callback_query(F.data == "files_grammar")
+async def handle_files_grammar(callback: CallbackQuery):
+    """Displays placeholder for Grammar Summaries."""
+    text = (
+        "📝 <b>ملخصات القواعد والأزمنة</b>\n\n"
+        "جاري رفع الملخصات والجداول التوضيحية الخاصة بالأزمنة والكتابة الأكاديمية."
+    )
+    await callback.message.edit_text(text, reply_markup=get_library_back_keyboard(), parse_mode="HTML")
+    await callback.answer()
+
+@courses_router.callback_query(F.data == "files_phonetics")
+async def handle_files_phonetics(callback: CallbackQuery):
+    """Displays placeholder for Phonetics Guides."""
+    text = (
+        "🗣 <b>أدلة التلفظ والصوتيات</b>\n\n"
+        "جاري رفع الجداول الصوتية (IPA Charts) وأدلة التدريب على اللكنة."
+    )
+    await callback.message.edit_text(text, reply_markup=get_library_back_keyboard(), parse_mode="HTML")
+    await callback.answer()
+
+@courses_router.callback_query(F.data == "files_exams")
+async def handle_files_exams(callback: CallbackQuery):
+    """Displays placeholder for Exam Past Papers."""
+    text = (
+        "🎯 <b>نماذج الامتحانات السابقة</b>\n\n"
+        "جاري تجهيز نماذج أسئلة الامتحان التنافسي (أدب إنجليزي) والاختبار الوطني (INELT)."
+    )
+    await callback.message.edit_text(text, reply_markup=get_library_back_keyboard(), parse_mode="HTML")
+    await callback.answer()
