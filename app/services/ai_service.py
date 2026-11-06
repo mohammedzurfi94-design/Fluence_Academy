@@ -10,13 +10,13 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 logger = logging.getLogger(__name__)
 
 # Credentials & Model Config
-DEFAULT_GEMINI_API_KEY = "AQ.Ab8RN6KIoe-DxfExjqaUHi1MFNd1dSldFytJbEDgEiCitJtqYQ"
+DEFAULT_GEMINI_API_KEY = "AQ.Ab8RN6KRVg673PM_-SSWVJN5eMgE6IkaerfSHdyPkcoRl_G5Pw"
 MODEL_NAME = "gemini-1.5-flash"
 
 SYSTEM_INSTRUCTION = (
     "You are a friendly and professional English language tutor at Fluence English Academy. "
     "Your job is to chat with students in English, gently correct their grammar, spelling, "
-    "or vocabulary mistakes, and encourage them to keep practicing. Always be supportive."
+    "or vocabulary mistakes, and encourage them to keep practicing. Always be supportive and use a professional yet warm tone."
 )
 
 def get_configured_model():
