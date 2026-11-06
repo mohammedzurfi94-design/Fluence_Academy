@@ -1,3 +1,6 @@
+import asyncio
+import os
+import requests
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from sqlalchemy import select
@@ -5,6 +8,51 @@ from datetime import datetime, timezone
 
 from app.database.connection import AsyncSessionLocal
 from app.database.models import User, Quiz, QuizQuestion, QuizAnswer, QuizAttempt, StudentProgress
+from app.core.config import settings
+
+def save_to_notion(first_name, username, score, level):
+    url = "https://api.notion.com/v1/pages"
+    
+    # تفاصيل الربط الخاصة بـ Fluence Academy
+    token = os.getenv("NOTION_API_TOKEN") or getattr(settings, "NOTION_API_TOKEN", None) or "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"
+    database_id = os.getenv("NOTION_DATABASE_ID") or getattr(settings, "NOTION_DATABASE_ID", None) or "7ae3e7572bf54b198a13816b43c90e05"
+
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+        "Notion-Version": "2022-06-28"
+    }
+    
+    # معالجة حالة عدم وجود معرف (Username) للطالب
+    username_text = f"@{username}" if username else "لا يوجد معرف"
+
+    # هيكل البيانات المطابق لأعمدة الجدول
+    data = {
+        "parent": {"database_id": database_id},
+        "properties": {
+            "Name": {
+                "title": [{"text": {"content": first_name or "طالب مجهول"}}]
+            },
+            "Username": {
+                "rich_text": [{"text": {"content": username_text}}]
+            },
+            "Score": {
+                "number": score
+            },
+            "Level": {
+                "rich_text": [{"text": {"content": str(level)}}]
+            }
+        }
+    }
+
+    try:
+        response = requests.post(url, headers=headers, json=data, timeout=10)
+        if response.status_code not in [200, 201]:
+            print(f"Notion Error: {response.text}")
+        else:
+            print(f"Notion Success: Saved placement result for {first_name} (Score: {score}/20, Level: {level})")
+    except Exception as e:
+        print(f"Failed to connect to Notion: {e}")
 
 quizzes_router = Router(name="quizzes_router")
 
@@ -363,7 +411,7 @@ def build_placement_question_keyboard(q_idx: int, score: int) -> InlineKeyboardM
     keyboard.append([InlineKeyboardButton(text="❌ إلغاء الاختبار | Cancel", callback_data="back_to_courses")])
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
-@quizzes_router.message(F.text.in_(["📝 اختبار المستوى | Placement Test", "اختبار المستوى", "Placement Test"]))
+@quizzes_router.message(F.text.contains("اختبار المستوى") | F.text.contains("Placement Test"))
 async def handle_placement_test(message: Message):
     """Displays the updated 20-question Placement Test overview and launch button."""
     text = (
@@ -418,6 +466,9 @@ async def handle_placement_test_answer(callback: CallbackQuery):
     else:
         # Placement test completed!
         level_name, target_callback = get_placement_level_info(score)
+        final_score = score
+        user_level = level_name
+        message = callback.message
         result_text = (
             "📊 <b>نتيجة اختبار تحديد المستوى | Placement Test Result</b>\n\n"
             f"لقد أجبت بشكل صحيح على <b>{score}</b> من أصل {len(PLACEMENT_QUESTIONS)} سؤالاً.\n"
@@ -470,9 +521,27 @@ async def handle_placement_test_answer(callback: CallbackQuery):
             parse_mode="HTML"
         )
 
+        # استدعاء دالة حفظ النتيجة في Notion
+        try:
+            first_name = (message.chat.first_name if (message and message.chat) else None) or (tg_user.first_name if tg_user else "طالب مجهول")
+            username = (message.chat.username if (message and message.chat) else None) or (tg_user.username if tg_user else None)
+
+            # تنفيذ غير حاجب (Non-blocking async thread) لضمان عدم بطء أو توقف البوت
+            asyncio.create_task(
+                asyncio.to_thread(
+                    save_to_notion,
+                    first_name,
+                    username,
+                    final_score,
+                    user_level
+                )
+            )
+        except Exception as e:
+            print(f"[Notion Integration Error] Failed to schedule Notion push: {e}")
+
     await callback.answer()
 
-@quizzes_router.message(F.text.in_(["🎯 الاختبارات اليومية | Quizzes", "الاختبارات اليومية", "Quizzes", "📝 Quizzes & Grades"]))
+@quizzes_router.message(F.text.contains("الاختبارات اليومية") | F.text.contains("Quizzes"))
 async def handle_quizzes_and_grades(message: Message):
     """Displays student quiz history, daily challenges, and scores."""
     tg_user = message.from_user
