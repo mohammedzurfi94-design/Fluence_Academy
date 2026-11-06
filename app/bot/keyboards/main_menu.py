@@ -18,7 +18,7 @@ def get_main_reply_keyboard() -> ReplyKeyboardMarkup:
             KeyboardButton(text="📁 الملفات والمواد | Study Files & Materials")
         ],
         [
-            KeyboardButton(text="🤖 المساعد اللغوي (AI Tutor)")
+            KeyboardButton(text="🤖 المساعد اللغوي")
         ],
         [
             KeyboardButton(text="✨ عن الأكاديمية | About Fluence"),
