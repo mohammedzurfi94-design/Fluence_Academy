@@ -1,37 +1,74 @@
-from typing import Optional
-from google import genai
+import os
+import logging
+import warnings
+from typing import Optional, List, Dict
 from app.core.config import settings
 
-def get_ai_tutor_response(student_question: str, context: Optional[str] = None) -> str:
-    """
-    Asks Google Gemini to act as a helpful, encouraging Fluence Academy English tutor.
-    Returns AI answer or fallback message if disabled.
-    """
-    if not settings.AI_ENABLED or not settings.GEMINI_API_KEY:
-        return (
-            "🤖 <b>AI Tutor Notice</b>\n\n"
-            "The AI Smart Tutor is currently offline or undergoing scheduled maintenance.\n"
-            "Please check back soon, or ask your question in our official channel: <b>@FluenceEnglish</b>!"
-        )
+# Suppress deprecation notice from google-generativeai
+warnings.filterwarnings("ignore", category=FutureWarning)
 
+logger = logging.getLogger(__name__)
+
+# Credentials & Model Config
+DEFAULT_GEMINI_API_KEY = "AQ.Ab8RN6KIoe-DxfExjqaUHi1MFNd1dSldFytJbEDgEiCitJtqYQ"
+MODEL_NAME = "gemini-1.5-flash"
+
+SYSTEM_INSTRUCTION = (
+    "You are a friendly and professional English language tutor at Fluence English Academy. "
+    "Your job is to chat with students in English, gently correct their grammar, spelling, "
+    "or vocabulary mistakes, and encourage them to keep practicing. Always be supportive."
+)
+
+def get_configured_model():
+    """Configures and returns the gemini-1.5-flash model with System Instruction."""
+    import google.generativeai as genai
+    
+    api_key = os.getenv("GEMINI_API_KEY") or getattr(settings, "GEMINI_API_KEY", None) or DEFAULT_GEMINI_API_KEY
+    if api_key:
+        api_key = str(api_key).strip().strip("'\"")
+
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel(
+        model_name=MODEL_NAME,
+        system_instruction=SYSTEM_INSTRUCTION
+    )
+    return model
+
+def chat_with_ai_tutor(user_message: str, history: Optional[List[Dict[str, str]]] = None) -> str:
+    """
+    Sends message to Gemini 1.5 Flash AI Tutor and returns the response.
+    Catches all exceptions gracefully to ensure the bot never halts or crashes.
+    """
     try:
-        client = genai.Client(api_key=settings.GEMINI_API_KEY)
-        system_instruction = (
-            "You are Fluence Academy's AI English Tutor. You are friendly, encouraging, and clear. "
-            "Explain concepts simply for English language learners. Keep explanations concise, polite, "
-            "and provide illustrative examples with correct grammar and pronunciation tips."
-        )
-
-        prompt = f"Student Question: {student_question}"
-        if context:
-            prompt = f"Context (Lesson Material):\n{context}\n\n{prompt}"
-
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=prompt,
-            config=dict(system_instruction=system_instruction)
-        )
-        return response.text or "I could not generate an answer right now. Please try again."
+        model = get_configured_model()
+        
+        # Build conversational history if provided
+        formatted_history = []
+        if history:
+            for item in history:
+                role = "user" if item.get("role") == "user" else "model"
+                parts = [item.get("text", "")]
+                formatted_history.append({"role": role, "parts": parts})
+        
+        chat = model.start_chat(history=formatted_history)
+        response = chat.send_message(user_message)
+        
+        if response and response.text:
+            return response.text.strip()
+        return "I am here to help you practice English! Could you please tell me more or ask another question?"
+        
     except Exception as e:
-        print(f"[AI Service Error] {e}")
-        return "⚠️ Our AI Tutor is currently experiencing high demand. Please try asking again in a moment."
+        logger.error(f"[AI Tutor Error] {e}")
+        print(f"[AI Tutor Exception] {e}")
+        return (
+            "⚠️ <b>عذراً، المساعد اللغوي غير متاح حالياً</b>\n\n"
+            "حدث خطأ أثناء الاتصال بمزود الذكاء الاصطناعي (Gemini). "
+            "يرجى المحاولة مرة أخرى لاحقاً أو التأكد من إعدادات الربط."
+        )
+
+def get_ai_tutor_response(student_question: str, context: Optional[str] = None) -> str:
+    """Legacy helper for single-turn queries."""
+    full_prompt = student_question
+    if context:
+        full_prompt = f"Context:\n{context}\n\nQuestion: {student_question}"
+    return chat_with_ai_tutor(full_prompt)
