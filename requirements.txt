@@ -14,6 +14,7 @@ asyncpg>=0.30.0
 pydantic>=2.10.0
 pydantic-settings>=2.7.0
 python-dotenv>=1.0.1
+requests>=2.31.0
 
 # Security & Authentication
 passlib[bcrypt]>=1.7.4
@@ -25,5 +26,6 @@ jinja2>=3.1.5
 python-multipart>=0.0.20
 aiofiles>=24.1.0
 
-# Optional AI Assistant (Google Gemini - Disabled initially)
+# Optional AI Assistant (Google Gemini)
+google-generativeai>=0.8.3
 google-genai>=1.0.0

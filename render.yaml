@@ -24,4 +24,10 @@ services:
       - key: DEFAULT_ADMIN_PASSWORD
         value: "adminpassword123"
       - key: AI_ENABLED
-        value: "false"
+        value: "true"
+      - key: GEMINI_API_KEY
+        value: "AQ.Ab8RN6KIoe-DxfExjqaUHi1MFNd1dSldFytJbEDgEiCitJtqYQ"
+      - key: NOTION_API_TOKEN
+        value: "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"
+      - key: NOTION_DATABASE_ID
+        value: "7ae3e7572bf54b198a13816b43c90e05"
