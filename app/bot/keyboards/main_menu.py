@@ -2,10 +2,11 @@ from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMar
 
 def get_main_reply_keyboard() -> ReplyKeyboardMarkup:
     """
-    Returns the bilingual 6-button main menu keyboard (2 buttons per row):
+    Returns the bilingual main menu keyboard:
     Row 1: [ 📚 الدورات التدريبية | Courses ] [ 📝 اختبار المستوى | Placement Test ]
     Row 2: [ 🎯 الاختبارات اليومية | Quizzes ] [ 📁 الملفات والمواد | Study Files & Materials ]
-    Row 3: [ ✨ عن الأكاديمية | About Fluence ] [ 💬 الدعم والتواصل | Help & Support ]
+    Row 3: [ 🤖 المساعد اللغوي (AI Tutor) ]
+    Row 4: [ ✨ عن الأكاديمية | About Fluence ] [ 💬 الدعم والتواصل | Help & Support ]
     """
     keyboard = [
         [
@@ -17,6 +18,9 @@ def get_main_reply_keyboard() -> ReplyKeyboardMarkup:
             KeyboardButton(text="📁 الملفات والمواد | Study Files & Materials")
         ],
         [
+            KeyboardButton(text="🤖 المساعد اللغوي (AI Tutor)")
+        ],
+        [
             KeyboardButton(text="✨ عن الأكاديمية | About Fluence"),
             KeyboardButton(text="💬 الدعم والتواصل | Help & Support")
         ]
@@ -26,6 +30,20 @@ def get_main_reply_keyboard() -> ReplyKeyboardMarkup:
         resize_keyboard=True,
         persistent=True,
         input_field_placeholder="اختر من القائمة أدناه | Choose an option..."
+    )
+
+def get_ai_chat_keyboard() -> ReplyKeyboardMarkup:
+    """Returns the chat keyboard while conversing with the AI Tutor."""
+    keyboard = [
+        [
+            KeyboardButton(text="🔙 إنهاء المحادثة")
+        ]
+    ]
+    return ReplyKeyboardMarkup(
+        keyboard=keyboard,
+        resize_keyboard=True,
+        persistent=True,
+        input_field_placeholder="اكتب رسالتك بالإنجليزية | Type in English..."
     )
 
 def get_channel_join_keyboard(channel_url: str) -> InlineKeyboardMarkup:
