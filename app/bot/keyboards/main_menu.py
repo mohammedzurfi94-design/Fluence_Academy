@@ -1,32 +1,146 @@
-الرجاء إضافة ميزة "مصحح الكتابة الأكاديمية" (Academic Writing Reviewer) إلى بوت التيليجرام باستخدام مكتبة groq.
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
 
-المطلوب تنفيذه بدقة داخل الكود:
+def get_main_reply_keyboard() -> ReplyKeyboardMarkup:
+    """
+    Returns the bilingual main menu keyboard:
+    Row 1: [ 📚 الدورات التدريبية | Courses ] [ 📝 اختبار المستوى | Placement Test ]
+    Row 2: [ 🎯 الاختبارات اليومية | Quizzes ] [ 📁 الملفات والمواد | Study Files & Materials ]
+    Row 3: [ 🤖 المساعد اللغوي ] [ 📝 مصحح الكتابة الأكاديمية ]
+    Row 4: [ ✨ عن الأكاديمية | About Fluence ] [ 💬 الدعم والتواصل | Help & Support ]
+    """
+    keyboard = [
+        [
+            KeyboardButton(text="📚 الدورات التدريبية | Courses"),
+            KeyboardButton(text="📝 اختبار المستوى | Placement Test")
+        ],
+        [
+            KeyboardButton(text="🎯 الاختبارات اليومية | Quizzes"),
+            KeyboardButton(text="📁 الملفات والمواد | Study Files & Materials")
+        ],
+        [
+            KeyboardButton(text="🤖 المساعد اللغوي"),
+            KeyboardButton(text="📝 مصحح الكتابة الأكاديمية")
+        ],
+        [
+            KeyboardButton(text="✨ عن الأكاديمية | About Fluence"),
+            KeyboardButton(text="💬 الدعم والتواصل | Help & Support")
+        ]
+    ]
+    return ReplyKeyboardMarkup(
+        keyboard=keyboard,
+        resize_keyboard=True,
+        persistent=True,
+        input_field_placeholder="اختر من القائمة أدناه | Choose an option..."
+    )
 
-تحديث واجهة البوت: أضف زراً جديداً في القائمة الرئيسية للبوت باسم 📝 "مصحح الكتابة الأكاديمية" (إلى جانب زر المساعد اللغوي).
+def get_ai_chat_keyboard() -> ReplyKeyboardMarkup:
+    """Returns the chat keyboard while conversing with the AI Tutor."""
+    keyboard = [
+        [
+            KeyboardButton(text="🔙 إنهاء المحادثة")
+        ]
+    ]
+    return ReplyKeyboardMarkup(
+        keyboard=keyboard,
+        resize_keyboard=True,
+        persistent=True,
+        input_field_placeholder="اكتب رسالتك بالإنجليزية | Type in English..."
+    )
 
-فصل حالة المحادثة (State Management): أنشئ حالة جديدة (State) خاصة بهذا القسم (مثلاً ACADEMIC_WRITING_STATE) لكي لا تتداخل مع قسم المساعد اللغوي العادي. أضف زر 🔙 "العودة للقائمة الرئيسية" داخل هذه الحالة.
+def get_academic_writing_keyboard() -> ReplyKeyboardMarkup:
+    """Returns the keyboard while in Academic Writing Review mode."""
+    keyboard = [
+        [
+            KeyboardButton(text="🔙 العودة للقائمة الرئيسية")
+        ]
+    ]
+    return ReplyKeyboardMarkup(
+        keyboard=keyboard,
+        resize_keyboard=True,
+        persistent=True,
+        input_field_placeholder="أرسل مقالك أو نصك الأكاديمي للتدقيق..."
+    )
 
-توجيه الذكاء الاصطناعي (System Prompt الأكاديمي): استخدم نموذج llama3-70b-8192 (لأنه الأقوى في التحليل المعقد) وقم بضبط system_prompt الخاص بهذه الحالة ليكون كالتالي تحديداً:
-*"You are an expert University Professor of English Language and Literature at Fluence English Academy. Your task is to evaluate and proofread academic writing, essays, and literature analyses submitted by university students.
-Strictly focus on:
+def get_channel_join_keyboard(channel_url: str) -> InlineKeyboardMarkup:
+    """Returns an inline button asking student to join the required channel."""
+    keyboard = [
+        [InlineKeyboardButton(text="📢 انضم إلى القناة الرسمية", url=channel_url)],
+        [InlineKeyboardButton(text="✅ تحقق من الاشتراك", callback_data="check_channel_joined")]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
-Academic tone and formal vocabulary.
+def get_courses_catalog_keyboard() -> InlineKeyboardMarkup:
+    """
+    Main Courses Categories Keyboard:
+    - 🏛️ كورسات اللغة الأكاديمية | Academic English
+    - 🗣️ كورسات اللغة العامة | General English
+    - 🎯 كورس الامتحان التنافسي | Competitive Exam
+    - 🇮🇶 كورس الاختبار الوطني (INELT) | National Exam
+    - 🔙 العودة للقائمة الرئيسية | Main Menu
+    """
+    keyboard = [
+        [InlineKeyboardButton(text="🏛️ كورسات اللغة الأكاديمية | Academic English", callback_data="cat_academic")],
+        [InlineKeyboardButton(text="🗣️ كورسات اللغة العامة | General English", callback_data="cat_general")],
+        [InlineKeyboardButton(text="🎯 كورس الامتحان التنافسي | Competitive Exam", callback_data="course_competitive")],
+        [InlineKeyboardButton(text="🇮🇶 كورس الاختبار الوطني (INELT) | National Exam", callback_data="course_inelt")],
+        [InlineKeyboardButton(text="🔙 العودة للقائمة الرئيسية | Main Menu", callback_data="back_to_main_menu")]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
-Correct usage of transition signals and coherence.
+def get_general_english_keyboard() -> InlineKeyboardMarkup:
+    """General English levels."""
+    keyboard = [
+        [InlineKeyboardButton(text="🌱 المستوى المبتدئ | Beginner (A1)", callback_data="level_a1")],
+        [InlineKeyboardButton(text="📘 المستوى الأساسي | Elementary (A2)", callback_data="level_a2")],
+        [InlineKeyboardButton(text="📙 المستوى قبل المتوسط | Pre-Intermediate (B1)", callback_data="level_b1")],
+        [InlineKeyboardButton(text="📕 المستوى المتوسط | Intermediate & Upper (B2)", callback_data="level_b2")],
+        [InlineKeyboardButton(text="🎓 المستوى المتقدم | Advanced (C1)", callback_data="level_c1")],
+        [InlineKeyboardButton(text="🏆 مستوى الإتقان التام | Proficiency (C2)", callback_data="level_c2")],
+        [InlineKeyboardButton(text="🔙 رجوع | Back", callback_data="back_to_courses")]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
-Grammatical accuracy and sentence variety.
+def get_academic_english_keyboard() -> InlineKeyboardMarkup:
+    """Academic English tracks."""
+    keyboard = [
+        [InlineKeyboardButton(text="✍️ الكتابة الأكاديمية والبحوث | Academic Writing & Research", callback_data="acad_writing")],
+        [InlineKeyboardButton(text="🎤 مهارات العرض والإلقاء | Academic Presentations", callback_data="acad_presentations")],
+        [InlineKeyboardButton(text="🗣️ النطق والتجويد اللفظي | Pronunciation & Phonetics", callback_data="acad_phonetics")],
+        [InlineKeyboardButton(text="🔙 رجوع | Back", callback_data="back_to_courses")]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
-If the text discusses literature, assume the context is World Literature (especially Poetry and Drama).
-Provide your feedback in this format:
+def get_exam_details_keyboard(contact_url: str = "https://t.me/Alzurfi1", button_text: str = "📲 للتسجيل والتواصل مع الإدارة | Contact & Register") -> InlineKeyboardMarkup:
+    """Direct registration and contact keyboard for Competitive Exam and INELT."""
+    keyboard = [
+        [InlineKeyboardButton(text=button_text, url=contact_url)],
+        [InlineKeyboardButton(text="🔙 رجوع | Back", callback_data="back_to_courses")]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
-📊 Overall Score (Out of 10)
+def get_sub_level_keyboard(parent_back: str, browse_callback: str = "browse_available_lessons") -> InlineKeyboardMarkup:
+    """Returns registration button and back button to parent category and main catalog."""
+    keyboard = [
+        [InlineKeyboardButton(text="💬 التواصل مع الأستاذ للتسجيل", url="https://t.me/Fluenceacademy")],
+        [InlineKeyboardButton(text="📚 تصفح الدروس المتاحة | Available Lessons", callback_data=browse_callback)],
+        [InlineKeyboardButton(text="🔙 رجوع | Back", callback_data=parent_back)]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
-🧐 Critique & Errors (Point out specific mistakes)
+def get_library_keyboard() -> InlineKeyboardMarkup:
+    """Library Categories Keyboard."""
+    keyboard = [
+        [InlineKeyboardButton(text="🎁 الملفات الخاصة بالأستاذ | Teacher's Exclusive Files", callback_data="files_teacher")],
+        [InlineKeyboardButton(text="📝 ملخصات القواعد | Grammar Summaries", callback_data="files_grammar")],
+        [InlineKeyboardButton(text="🗣 أدلة التلفظ | Phonetics Guides", callback_data="files_phonetics")],
+        [InlineKeyboardButton(text="🎯 نماذج الامتحانات | Exam Past Papers", callback_data="files_exams")],
+        [InlineKeyboardButton(text="🔙 العودة للقائمة الرئيسية | Main Menu", callback_data="back_to_main_menu")]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
-✨ Polished Academic Version (Rewrite the text professionally)."*
-
-معالجة النصوص: عندما يرسل الطالب نصاً أو مقالاً في هذه الحالة، يتم إرساله إلى Groq بهذا التوجيه الصارم، ثم يُرسل الرد المنظم للطالب.
-
-التعامل مع الأخطاء: استخدم try-except للتعامل مع النصوص الطويلة جداً أو تأخر الاستجابة، مع إرسال رسالة توضيحية للطالب في حال حدوث خطأ.
-
-الرجاء كتابة الكود اللازم لتطبيق هذه الميزة، ثم عمل Commit و Push إلى GitHub ليتم تحديث البوت عبر Render.
+def get_library_back_keyboard() -> InlineKeyboardMarkup:
+    """Returns back button to the digital library menu."""
+    keyboard = [
+        [InlineKeyboardButton(text="🔙 رجوع | Back", callback_data="back_to_library")]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
