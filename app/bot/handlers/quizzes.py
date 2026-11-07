@@ -17,11 +17,10 @@ from app.core.config import settings
 quizzes_router = Router(name="quizzes_router")
 
 try:
-    from app.services.ai_service import get_today_lesson, send_daily_lesson_to_user, create_certificate_pdf
+    from app.services.ai_service import get_today_lesson, send_daily_lesson_to_user
 except Exception:
     try:
         from app.services.scheduler_service import get_today_lesson, send_daily_lesson_to_user
-        from app.services.certificate_service import create_certificate_pdf
     except Exception:
         def get_today_lesson(force_refresh=False):
             return {
@@ -31,7 +30,148 @@ except Exception:
             }
         async def send_daily_lesson_to_user(bot, chat_id, lesson, send_voice=True):
             pass
-        create_certificate_pdf = None
+
+# --- محرك توليد الشهادات الإلكترونية الرسمية المعتمدة (100% Pure Python & Self-Contained) ---
+def create_certificate_pdf(
+    student_name: str,
+    score: int,
+    total_questions: int,
+    level: str,
+    cert_id: str,
+    issue_date: str,
+    output_path: str
+) -> str:
+    """Creates strictly valid Landscape A4 PDF certificate with embedded logo."""
+    percentage = round((score / total_questions) * 100, 1) if total_questions > 0 else 0
+
+    clean_name = ''.join(c for c in str(student_name) if 32 <= ord(c) <= 126).strip() or "Fluence Scholar"
+    clean_level = ''.join(c for c in str(level) if 32 <= ord(c) <= 126).strip().upper() or "B2"
+    clean_id = ''.join(c for c in str(cert_id) if 32 <= ord(c) <= 126).strip() or "FA-CEFR-2026-0001"
+    clean_date = ''.join(c for c in str(issue_date) if 32 <= ord(c) <= 126).strip() or datetime.now().strftime("%Y-%m-%d")
+
+    logo_candidates = [
+        os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "assets", "logo_square.jpg"),
+        os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "assets", "logo.jpg"),
+        os.path.join("app", "assets", "logo_square.jpg"),
+        os.path.join("app", "assets", "logo.jpg"),
+        "logo_square.jpg",
+        "logo.jpg"
+    ]
+    logo_bytes = None
+    for cand in logo_candidates:
+        if os.path.exists(cand):
+            try:
+                with open(cand, 'rb') as lf:
+                    logo_bytes = lf.read()
+                break
+            except Exception:
+                pass
+
+    stream_ops = []
+    # الخلفية البيضاء
+    stream_ops.append('1 1 1 rg 0 0 842 595 re f')
+    # الإطارات الملكية (كحلي وذهبي)
+    stream_ops.append('0.06 0.13 0.28 RG 6 w 25 25 792 545 re S')
+    stream_ops.append('0.79 0.65 0.27 RG 2 w 35 35 772 525 re S')
+    stream_ops.append('0.06 0.13 0.28 RG 0.8 w 41 41 760 513 re S')
+    stream_ops.append('0.79 0.65 0.27 rg 33 33 12 12 re f 797 33 12 12 re f 33 550 12 12 re f 797 550 12 12 re f')
+
+    # الشعار الرسمي أعلى الشهادة
+    if logo_bytes:
+        stream_ops.append('q 64 0 0 64 389 488 cm /Im1 Do Q')
+
+    # ترويسة الأكاديمية
+    stream_ops.append('BT /F2 18 Tf 0.06 0.13 0.28 rg 290 460 Td (FLUENCE ENGLISH ACADEMY) Tj ET')
+    stream_ops.append('BT /F4 10 Tf 0.79 0.65 0.27 rg 305 444 Td (ACCREDITED LANGUAGE & ACADEMIC PLATFORM) Tj ET')
+    stream_ops.append('BT /F3 26 Tf 0.08 0.16 0.35 rg 215 395 Td (CERTIFICATE OF PROFICIENCY) Tj ET')
+    stream_ops.append('BT /F4 11 Tf 0.45 0.50 0.58 rg 270 375 Td (COMMON EUROPEAN FRAMEWORK OF REFERENCE - CEFR) Tj ET')
+    stream_ops.append('BT /F1 12 Tf 0.35 0.38 0.44 rg 355 335 Td (This is to certify that) Tj ET')
+
+    # اسم الطالب المسجل
+    name_x = max(100, int(421 - (len(clean_name) * 11 / 2)))
+    stream_ops.append(f'BT /F2 22 Tf 0.08 0.16 0.35 rg {name_x} 300 Td ({clean_name}) Tj ET')
+    stream_ops.append('0.79 0.65 0.27 RG 1.5 w 250 292 m 592 292 l S')
+
+    # البيان الأكاديمي
+    stream_ops.append('BT /F1 11.5 Tf 0.25 0.28 0.34 rg 170 262 Td (has successfully completed the comprehensive diagnostic English placement assessment) Tj ET')
+    stream_ops.append('BT /F1 11.5 Tf 0.25 0.28 0.34 rg 210 244 Td (demonstrating proven academic competence and linguistic proficiency evaluated at:) Tj ET')
+
+    # وسام المستوى المعتمد
+    stream_ops.append('0.06 0.13 0.28 rg 271 185 300 42 re f')
+    stream_ops.append('0.79 0.65 0.27 RG 2 w 271 185 300 42 re S')
+    badge_text = f'CEFR LEVEL: {clean_level}'
+    badge_x = int(421 - (len(badge_text) * 8.5 / 2))
+    stream_ops.append(f'BT /F2 15 Tf 1 1 1 rg {badge_x} 200 Td ({badge_text}) Tj ET')
+
+    score_text = f'Official Assessment Score: {score}/{total_questions} - {percentage}%'
+    score_x = int(421 - (len(score_text) * 6.5 / 2))
+    stream_ops.append(f'BT /F2 10.5 Tf 0.08 0.16 0.35 rg {score_x} 165 Td ({score_text}) Tj ET')
+
+    # بيانات التوثيق والتحقق
+    stream_ops.append('0.79 0.65 0.27 RG 1 w 70 148 m 260 148 l S')
+    stream_ops.append(f'BT /F2 9.5 Tf 0.15 0.18 0.24 rg 70 133 Td (Credential ID: {clean_id}) Tj ET')
+    stream_ops.append(f'BT /F1 9 Tf 0.30 0.35 0.42 rg 70 119 Td (Issue Date: {clean_date}) Tj ET')
+    stream_ops.append('BT /F4 8 Tf 0.45 0.50 0.58 rg 70 105 Td (Verified in Fluence Academy Notion Registry) Tj ET')
+
+    # ختم الأكاديمية بالأسفل
+    if logo_bytes:
+        stream_ops.append('q 60 0 0 60 391 80 cm /Im1 Do Q')
+
+    # توقيع الأستاذ المشرف العام
+    stream_ops.append('0.79 0.65 0.27 RG 1 w 580 148 m 770 148 l S')
+    stream_ops.append('BT /F2 9.5 Tf 0.15 0.18 0.24 rg 580 133 Td (Lect. Mohammed Hussein) Tj ET')
+    stream_ops.append('BT /F1 8.5 Tf 0.35 0.38 0.44 rg 580 119 Td (Director & General Academic Supervisor) Tj ET')
+    stream_ops.append('BT /F4 8 Tf 0.45 0.50 0.58 rg 580 105 Td (Fluence English Academy) Tj ET')
+
+    content = '\n'.join(stream_ops).encode('latin1')
+    content_len = len(content)
+
+    res_dict = b'<< /Font << /F1 4 0 R /F2 5 0 R /F3 6 0 R /F4 7 0 R >>'
+    if logo_bytes:
+        res_dict += b' /XObject << /Im1 9 0 R >>'
+    res_dict += b' >>'
+
+    header = b'%PDF-1.4\n'
+    objs = [
+        b'1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj',
+        b'2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj',
+        b'3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 842 595] /Resources ' + res_dict + b' /Contents 8 0 R >>\nendobj',
+        b'4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj',
+        b'5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>\nendobj',
+        b'6 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Times-Bold >>\nendobj',
+        b'7 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Times-Italic >>\nendobj',
+        f'8 0 obj\n<< /Length {content_len} >>\nstream\n'.encode('latin1') + content + b'\nendstream\nendobj'
+    ]
+
+    if logo_bytes:
+        objs.append(
+            f'9 0 obj\n<< /Type /XObject /Subtype /Image /Width 477 /Height 477 /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length {len(logo_bytes)} >>\nstream\n'.encode('latin1')
+            + logo_bytes
+            + b'\nendstream\nendobj'
+        )
+
+    raw = header
+    offsets = []
+    for obj in objs:
+        offsets.append(len(raw))
+        raw += obj + b'\n'
+
+    xref_offset = len(raw)
+    xref_str = f'xref\n0 {len(objs) + 1}\n0000000000 65535 f \n'
+    for off in offsets:
+        xref_str += f'{off:010d} 00000 n \n'
+
+    raw += xref_str.encode('latin1')
+    raw += f'trailer\n<< /Size {len(objs) + 1} /Root 1 0 R >>\nstartxref\n{xref_offset}\n%%EOF\n'.encode('latin1')
+
+    dir_name = os.path.dirname(output_path)
+    if dir_name:
+        os.makedirs(dir_name, exist_ok=True)
+
+    with open(output_path, 'wb') as f:
+        f.write(raw)
+
+    return output_path
 
 def save_to_notion(first_name, username, score, level):
     url = "https://api.notion.com/v1/pages"
@@ -211,7 +351,7 @@ async def handle_quiz_answer(callback: CallbackQuery):
                 await callback.message.answer(result_text, reply_markup=InlineKeyboardMarkup(inline_keyboard=result_keyboard), parse_mode="HTML")
             await callback.answer()
 
-# --- متجدد لاختبار تحديد المستوى (20 سؤالاً CEFR) ---
+# --- بنك أسئلة اختبار تحديد المستوى المتجدد (20 سؤالاً CEFR) ---
 PLACEMENT_QUESTIONS_POOL = [
     # A1 Level
     [
@@ -360,7 +500,7 @@ async def handle_placement_answer(callback: CallbackQuery):
             user_level = "C1/C2 (Advanced & Mastery)"
             rec_course = "كورس الإتقان الأكاديمي والتحضير لاختبار INELT الوطني الموحد"
 
-        # Save to Notion
+        # حفظ في Notion
         first_name = tg_user.first_name if tg_user else "طالب"
         username = tg_user.username if tg_user else None
         try:
@@ -375,10 +515,11 @@ async def handle_placement_answer(callback: CallbackQuery):
             [InlineKeyboardButton(text="🏠 العودة للرئيسية | Main Menu", callback_data="back_to_main_menu")]
         ]
 
+        raw_name = (tg_user.full_name or tg_user.username or "Student") if tg_user else "Student"
         result_card = (
             f"🏆 <b>نتيجة اختبار تحديد المستوى المعتمد</b> 🎓\n"
             f"━━━━━━━━━━━━━━━━━━━\n"
-            f"👤 <b>الطالب:</b> {html.escape(tg_user.full_name or 'طالب الأكاديمية')}\n"
+            f"👤 <b>الطالب:</b> {html.escape(raw_name)}\n"
             f"📊 <b>النتيجة:</b> {final_score} من أصل {total_q} أسئلة تشخيصية.\n"
             f"🏅 <b>مستواك وفق المعيار الأوروبي (CEFR):</b>\n"
             f"👉 <b>{user_level}</b>\n\n"
@@ -395,11 +536,14 @@ async def handle_placement_answer(callback: CallbackQuery):
         await callback.answer()
 
         # توليد وإرسال الشهادة الرسمية تلقائياً
-        if tg_user and create_certificate_pdf:
+        if tg_user:
             try:
                 cert_id = f"FA-CEFR-{datetime.now().year}-{tg_user.id % 10000:04d}"
                 today_date = datetime.now().strftime("%Y-%m-%d")
-                student_name = tg_user.full_name or tg_user.username or "Student"
+                
+                latin_chars = "".join(c for c in raw_name if (65 <= ord(c) <= 90 or 97 <= ord(c) <= 122 or c == " ")).strip()
+                student_display_name = latin_chars if len(latin_chars) >= 3 else (f"Scholar @{tg_user.username}" if tg_user.username else "Fluence Academy Scholar")
+
                 storage_dir = "storage/certificates"
                 os.makedirs(storage_dir, exist_ok=True)
                 cert_filename = f"Certificate_{tg_user.id}_{int(datetime.now().timestamp())}.pdf"
@@ -407,7 +551,7 @@ async def handle_placement_answer(callback: CallbackQuery):
 
                 await asyncio.to_thread(
                     create_certificate_pdf,
-                    student_name=student_name,
+                    student_name=student_display_name,
                     score=final_score,
                     total_questions=total_q,
                     level=user_level,
@@ -416,20 +560,30 @@ async def handle_placement_answer(callback: CallbackQuery):
                     output_path=cert_path
                 )
 
-                if os.path.exists(cert_path) and callback.message:
-                    doc = FSInputFile(cert_path, filename=f"Fluence_Certificate_{student_name.replace(' ', '_')}.pdf")
-                    await callback.message.answer_document(
-                        document=doc,
-                        caption=(
-                            f"🎓 <b>شهادة إلكترونية رسمية معتمدة | Official Certificate</b>\n"
-                            f"━━━━━━━━━━━━━━━━━━━\n"
-                            f"تمنح أكاديمية Fluence هذه الشهادة للطالب <b>{html.escape(student_name)}</b> "
-                            f"لاجتيازه اختبار قياس المستوى بنتيجة <b>{final_score}/{total_q}</b> ومستوى <b>{user_level}</b>.\n\n"
-                            f"المشرف العام: <b>Lect. Mohammed Hussein</b>\n"
-                            f"رقم التوثيق: <code>{cert_id}</code>"
-                        ),
-                        parse_mode="HTML"
+                if os.path.exists(cert_path) and os.path.getsize(cert_path) > 0:
+                    doc = FSInputFile(cert_path, filename=f"Fluence_Certificate_{cert_id}.pdf")
+                    caption = (
+                        f"🎓 <b>شهادة إلكترونية رسمية معتمدة | Official Certificate</b>\n"
+                        f"━━━━━━━━━━━━━━━━━━━\n"
+                        f"تمنح أكاديمية Fluence هذه الشهادة للطالب <b>{html.escape(raw_name)}</b> "
+                        f"لاجتيازه اختبار قياس المستوى بنتيجة <b>{final_score}/{total_q}</b> ومستوى <b>{user_level}</b>.\n\n"
+                        f"المشرف العام: <b>Lect. Mohammed Hussein</b>\n"
+                        f"رقم التوثيق: <code>{cert_id}</code>"
                     )
+                    try:
+                        await callback.message.answer_document(
+                            document=doc,
+                            caption=caption,
+                            parse_mode="HTML"
+                        )
+                    except Exception:
+                        if callback.bot and tg_user:
+                            await callback.bot.send_document(
+                                chat_id=tg_user.id,
+                                document=doc,
+                                caption=caption,
+                                parse_mode="HTML"
+                            )
             except Exception as cert_err:
                 print(f"[Auto Certificate Delivery Error] {cert_err}")
 
@@ -437,11 +591,16 @@ async def handle_placement_answer(callback: CallbackQuery):
         placement_sessions.pop(user_id, None)
 
 @quizzes_router.callback_query(F.data.startswith("download_cert_"))
-async def handle_download_certificate_callback(callback: CallbackQuery):
+async def handle_download_cert_callback(callback: CallbackQuery):
+    """Generates and delivers the official PDF Certificate of English Proficiency on demand."""
+    try:
+        await callback.answer("🎓 جاري إعداد وتصدير شهادتك الرسمية المعتمدة...")
+    except Exception:
+        pass
+
     parts = callback.data.split("_")
-    score = int(parts[2])
-    total_q = int(parts[3])
-    tg_user = callback.from_user
+    score = int(parts[2]) if len(parts) > 2 else 10
+    total_q = int(parts[3]) if len(parts) > 3 else 20
 
     if score <= 4:
         level_name = "A1 (Beginner)"
@@ -454,7 +613,11 @@ async def handle_download_certificate_callback(callback: CallbackQuery):
     else:
         level_name = "C1/C2 (Advanced & Mastery)"
 
-    student_name = (tg_user.full_name or tg_user.username or "Student") if tg_user else "Student"
+    tg_user = callback.from_user
+    raw_name = (tg_user.full_name or tg_user.username or "Student") if tg_user else "Student"
+    latin_chars = "".join(c for c in raw_name if (65 <= ord(c) <= 90 or 97 <= ord(c) <= 122 or c == " ")).strip()
+    student_display_name = latin_chars if len(latin_chars) >= 3 else (f"Scholar @{tg_user.username}" if tg_user and tg_user.username else "Fluence Academy Scholar")
+
     cert_id = f"FA-CEFR-{datetime.now().year}-{(tg_user.id if tg_user else 1000) % 10000:04d}"
     today_date = datetime.now().strftime("%Y-%m-%d")
 
@@ -463,34 +626,43 @@ async def handle_download_certificate_callback(callback: CallbackQuery):
     cert_path = os.path.join(storage_dir, f"Certificate_{tg_user.id if tg_user else 0}_{int(datetime.now().timestamp())}.pdf")
 
     try:
-        if create_certificate_pdf:
-            await asyncio.to_thread(
-                create_certificate_pdf,
-                student_name=student_name,
-                score=score,
-                total_questions=total_q,
-                level=level_name,
-                cert_id=cert_id,
-                issue_date=today_date,
-                output_path=cert_path
-            )
+        await asyncio.to_thread(
+            create_certificate_pdf,
+            student_name=student_display_name,
+            score=score,
+            total_questions=total_q,
+            level=level_name,
+            cert_id=cert_id,
+            issue_date=today_date,
+            output_path=cert_path
+        )
 
-        if os.path.exists(cert_path) and callback.message:
-            doc = FSInputFile(cert_path, filename=f"Fluence_Certificate_{student_name.replace(' ', '_')}.pdf")
-            await callback.message.answer_document(
-                document=doc,
-                caption=(
-                    f"🎓 <b>نسخة شهادتك الرسمية المعتمدة | Official Certificate</b>\n"
-                    f"━━━━━━━━━━━━━━━━━━━\n"
-                    f"الطالب: <b>{html.escape(student_name)}</b>\n"
-                    f"المستوى المحقق: <b>{level_name}</b> ({score}/{total_q})\n"
-                    f"المشرف العام: <b>Lect. Mohammed Hussein</b>"
-                ),
-                parse_mode="HTML"
+        if os.path.exists(cert_path) and os.path.getsize(cert_path) > 0:
+            doc = FSInputFile(cert_path, filename=f"Fluence_Certificate_{cert_id}.pdf")
+            caption = (
+                "🎓 <b>نسخة شهادتك الرسمية المعتمدة | Official Certificate</b>\n"
+                "━━━━━━━━━━━━━━━━━━━\n"
+                f"الطالب: <b>{html.escape(raw_name)}</b>\n"
+                f"المستوى المحقق: <b>{level_name}</b> ({score}/{total_q})\n"
+                f"المشرف العام: <b>Lect. Mohammed Hussein</b>\n"
+                f"رقم التوثيق: <code>{cert_id}</code>"
             )
-            await callback.answer("تم إرسال الشهادة بنجاح! 🎓", show_alert=False)
+            try:
+                await callback.message.answer_document(
+                    document=doc,
+                    caption=caption,
+                    parse_mode="HTML"
+                )
+            except Exception:
+                if callback.bot and tg_user:
+                    await callback.bot.send_document(
+                        chat_id=tg_user.id,
+                        document=doc,
+                        caption=caption,
+                        parse_mode="HTML"
+                    )
         else:
-            await callback.answer("جاري تجهيز الشهادة، يرجى المحاولة بعد لحظات.", show_alert=True)
+            await callback.answer("⚠️ تعذر إنشاء الشهادة حالياً، يرجى المحاولة بعد قليل.", show_alert=True)
     except Exception as e:
         print(f"[Certificate Download Error] {e}")
-        await callback.answer("حدث خطأ أثناء تحميل الشهادة، يرجى المحاولة لاحقاً.", show_alert=True)
+        await callback.message.answer("⚠️ حدث تأخر مؤقت في إصدار ملف الشهادة. يرجى المحاولة مرة أخرى.")
