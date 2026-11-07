@@ -33,7 +33,14 @@ async def start_web_dashboard():
 
 async def start_telegram_bot():
     """Starts the aiogram Telegram Educational Bot with automatic reconnection and daily scheduler."""
-    from app.services.scheduler_service import start_daily_scheduler
+    try:
+        from app.services.ai_service import start_daily_scheduler
+    except Exception:
+        try:
+            from app.services.scheduler_service import start_daily_scheduler
+        except Exception:
+            start_daily_scheduler = None
+
     while True:
         bot = create_bot()
         dp = create_dispatcher()
@@ -41,7 +48,8 @@ async def start_telegram_bot():
         try:
             bot_info = await bot.get_me()
             print(f"🤖 Telegram Bot connected as: @{bot_info.username}", flush=True)
-            scheduler_task = asyncio.create_task(start_daily_scheduler(bot))
+            if start_daily_scheduler:
+                scheduler_task = asyncio.create_task(start_daily_scheduler(bot))
             await dp.start_polling(bot, handle_signals=False)
         except Exception as e:
             print(f"[Bot Notice] Polling paused: {e}. Reconnecting automatically in 5s...", flush=True)
