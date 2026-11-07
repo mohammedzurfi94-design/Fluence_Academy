@@ -13,12 +13,15 @@ from app.services.ai_service import (
     chat_with_ai_tutor,
     transcribe_audio_groq,
     text_to_speech_gtts,
-    review_academic_writing
+    review_academic_writing,
+    generate_daily_challenge,
+    evaluate_daily_challenge
 )
 from app.bot.keyboards.main_menu import (
     get_main_reply_keyboard,
     get_ai_chat_keyboard,
-    get_academic_writing_keyboard
+    get_academic_writing_keyboard,
+    get_daily_challenge_keyboard
 )
 
 logger = logging.getLogger(__name__)
@@ -31,21 +34,30 @@ class AITutorStates(StatesGroup):
 class AcademicWritingStates(StatesGroup):
     reviewing = State()
 
+class DailyChallengeStates(StatesGroup):
+    waiting_answer = State()
+
 async def send_safe_message(message: Message, text: str, reply_markup=None):
     """
     Safely sends text message to Telegram:
-    Tries HTML mode first. If Telegram entity parser fails, falls back to plain text mode.
+    Cleans incompatible tags like <br>, tries HTML mode first, and falls back to plain text mode.
     Guarantees 100% delivery without crashing on entity parse errors.
     """
+    # Replace <br> tags with newlines
+    clean_text = re.sub(r"<br\s*/?>", "\n", text, flags=re.IGNORECASE)
     try:
-        await message.answer(text, reply_markup=reply_markup, parse_mode="HTML")
+        await message.answer(clean_text, reply_markup=reply_markup, parse_mode="HTML")
     except Exception as parse_err:
         print(f"[Telegram Send Notice] HTML parsing failed ({parse_err}), falling back to plain text.", flush=True)
-        plain_text = re.sub(r"<[^>]+>", "", text)
+        plain_text = re.sub(r"<[^>]+>", "", clean_text)
+        plain_text = html.unescape(plain_text)
         await message.answer(plain_text, reply_markup=reply_markup, parse_mode=None)
 
 async def send_tts_voice_response(message: Message, text_to_speak: str):
-    """Converts English tutor response into speech using gTTS (British Accent)."""
+    """
+    Converts English tutor response into speech using gTTS (British Accent),
+    sends it as a voice note to the student, and safely removes the temp file.
+    """
     storage_dir = "storage"
     os.makedirs(storage_dir, exist_ok=True)
     temp_tts_path = os.path.join(storage_dir, f"bot_reply_{message.from_user.id}_{message.message_id}.mp3")
@@ -59,22 +71,15 @@ async def send_tts_voice_response(message: Message, text_to_speak: str):
         await asyncio.to_thread(text_to_speech_gtts, text_to_speak, temp_tts_path)
 
         if os.path.exists(temp_tts_path) and os.path.getsize(temp_tts_path) > 0:
-            voice_input = FSInputFile(temp_tts_path)
-            try:
-                await message.answer_voice(
-                    voice=voice_input,
-                    caption="🎧 <i>استمع إلى اللفظ والتصحيح (British Accent)</i>",
-                    parse_mode="HTML"
-                )
-            except Exception:
-                await message.answer_audio(
-                    audio=voice_input,
-                    title="English Tutor Pronunciation",
-                    performer="Fluence English Academy"
-                )
-    except Exception as tts_err:
-        print(f"[AI Tutor TTS ERROR] {tts_err}", flush=True)
-        logger.warning(f"[TTS Pronunciation Error] {tts_err}")
+            voice_file = FSInputFile(temp_tts_path)
+            await message.answer_voice(
+                voice=voice_file,
+                caption="🎙️ <i>استمع إلى النطق واللفظ النموذجي (British English)</i>",
+                parse_mode="HTML"
+            )
+    except Exception as e:
+        print(f"[TTS Voice Warning] Could not send voice note: {e}", flush=True)
+        logger.warning(f"[TTS Voice Warning] {e}")
     finally:
         if os.path.exists(temp_tts_path):
             try:
@@ -82,22 +87,25 @@ async def send_tts_voice_response(message: Message, text_to_speak: str):
             except Exception:
                 pass
 
-@ai_router.message(F.text.contains("المساعد اللغوي") | F.text.contains("AI Tutor"))
-async def handle_start_ai_tutor_chat(message: Message, state: FSMContext):
-    """Activates AI English Tutor conversation mode."""
+# =========================================================================
+# AI English Tutor Handlers
+# =========================================================================
+
+@ai_router.message(F.text.contains("المساعد اللغوي") | F.text.contains("AI Tutor") | Command("ai_mode"))
+async def handle_start_ai_tutor(message: Message, state: FSMContext):
+    """Starts interactive AI English Tutor mode."""
     await state.set_state(AITutorStates.chatting)
-    await state.update_data(history=[])
     print(f"[AI Tutor LOG] User @{message.from_user.username} entered AI Tutor mode.", flush=True)
 
     welcome_text = (
-        "🤖 <b>مرحباً بك في خدمة المساعد اللغوي الذكي (AI English Tutor)!</b> 🎓\n\n"
-        "أنا هنا لمساعدتك على ممارسة وتطوير لغتك الإنجليزية، وتصحيح أي أخطاء قواعدية أو إملائية أو لفظية بلطف ودقة.\n\n"
-        "💬 <b>كيف تبدأ؟</b>\n"
-        "• اكتب أي رسالة أو جملة باللغة الإنجليزية ✍️\n"
-        "• أو أرسل <b>رسالة صوتية (Voice Note) 🎙️</b> وسأستمع لنطقك وأساعدك فوراً!\n\n"
-        "🎧 <b>الميزة الصوتية التفاعلية:</b>\n"
-        "سأقوم بالرد عليك كتابياً، وسأرسل لك أيضاً <b>بصمة صوتية باللكنة البريطانية المعتمدة</b> لتستمع للنطق الصحيح وتكرره معي! 🌟\n\n"
-        "🚪 <i>للخروج والعودة للقائمة الرئيسية في أي وقت، اضغط على زر</i> <b>«🔙 إنهاء المحادثة»</b>."
+        "🤖 <b>أهلاً بك في قسم المساعد اللغوي الذكي! (Fluence AI Tutor)</b>\n\n"
+        "أنا معلمك الخاص للغة الإنجليزية من <b>أكاديمية فلوينس</b> 🎓\n"
+        "يسعدني مساعدتك في:\n"
+        "• 🗣️ <b>المحادثة بالإنجليزية</b> وتصحيح الأخطاء اللغوية فورياً.\n"
+        "• 🎙️ <b>التدرب على النطق واللفظ:</b> أرسل رسالة صوتية (Voice Note) وسأستمع إليها وأرد عليك بنص وتسجيل صوتي باللكنة البريطانية.\n"
+        "• 📖 <b>شرح القواعد والمفردات</b> وتجهيزك لاختبارات IELTS / TOEFL.\n\n"
+        "✍️ <i>تفضل بإرسال سؤالك الآن كنص أو رسالة صوتية!</i>\n"
+        "🚪 <i>للخروج في أي وقت، اضغط على زر</i> <b>«🔙 إنهاء المحادثة»</b>."
     )
     await message.answer(
         welcome_text,
@@ -106,53 +114,52 @@ async def handle_start_ai_tutor_chat(message: Message, state: FSMContext):
     )
 
 @ai_router.message(AITutorStates.chatting, F.text.contains("إنهاء المحادثة") | F.text.in_(["/exit", "/stop", "خروج", "Exit"]))
-async def handle_exit_ai_tutor_chat(message: Message, state: FSMContext):
-    """Exits AI Tutor conversation mode and restores main menu."""
+async def handle_exit_ai_tutor(message: Message, state: FSMContext):
+    """Exits AI Tutor mode and returns to main menu."""
     print(f"[AI Tutor LOG] User @{message.from_user.username} exited AI Tutor mode.", flush=True)
     await state.clear()
-    exit_text = (
-        "✅ <b>تم إنهاء المحادثة مع المساعد اللغوي بنجاح.</b>\n\n"
-        "أحسنت في ممارسة لغتك اليوم! تذكر دائماً أن الاستمرار والممارسة هما سر الإتقان. 🌟\n\n"
-        "اختر من القائمة أدناه للوصول إلى باقي أقسام الأكاديمية: 👇"
-    )
     await message.answer(
-        exit_text,
+        "✅ <b>تم إنهاء جلسة المساعد اللغوي بنجاح.</b>\n\n"
+        "أحسنت صنعاً في تدريب لغتك اليوم! 🌟\n"
+        "يمكنك دائماً العودة للتحدث معي من القائمة الرئيسية.",
         reply_markup=get_main_reply_keyboard(),
         parse_mode="HTML"
     )
 
 @ai_router.message(AITutorStates.chatting, F.text | F.voice | F.audio)
-async def handle_ai_chat_unified(message: Message, state: FSMContext):
-    """Unified MessageHandler for AI English Tutor (Voice, Audio, and Text)."""
-    print(f"\n[AI Tutor LOG] Received message from @{message.from_user.username} (ID: {message.from_user.id})", flush=True)
+async def handle_ai_chat_message(message: Message, state: FSMContext):
+    """Handles both Text and Voice/Audio messages in AI Tutor mode."""
 
-    # 1. Handle Voice & Audio
+    # 1. Handle Voice / Audio Notes
     if message.voice or message.audio:
-        file_obj = message.voice or message.audio
-        print(f"[AI Tutor LOG] 🎙️ Processing Audio/Voice message (file_id: {file_obj.file_id})...", flush=True)
+        print(f"[AI Tutor LOG] 🎙️ Processing Voice/Audio message from @{message.from_user.username}...", flush=True)
 
-        await message.answer("مرحباً! لقد استلمت رسالتك الصوتية 🎧، جاري الاستماع والتحليل...")
-
-        try:
-            await message.bot.send_chat_action(chat_id=message.chat.id, action="typing")
-        except Exception:
-            pass
+        status_msg = await message.answer(
+            "🎧 <b>مرحباً! لقد استلمت رسالتك الصوتية</b>\n"
+            "<i>جاري الاستماع والتحليل بالذكاء الاصطناعي...</i>",
+            parse_mode="HTML"
+        )
 
         storage_dir = "storage"
         os.makedirs(storage_dir, exist_ok=True)
-        ext = "ogg" if message.voice else (file_obj.file_name.split(".")[-1] if file_obj.file_name and "." in file_obj.file_name else "ogg")
-        temp_file_path = os.path.join(storage_dir, f"temp_voice_{message.from_user.id}_{message.message_id}.{ext}")
+        file_id = message.voice.file_id if message.voice else message.audio.file_id
+        temp_file_path = os.path.join(storage_dir, f"voice_{message.from_user.id}_{message.message_id}.ogg")
 
         try:
-            print(f"[AI Tutor LOG] Downloading audio file to: {temp_file_path}", flush=True)
-            await message.bot.download(file=file_obj, destination=temp_file_path)
-            print(f"[AI Tutor LOG] Download completed. Size: {os.path.getsize(temp_file_path)} bytes", flush=True)
+            bot = message.bot
+            file = await bot.get_file(file_id)
+            await bot.download_file(file.file_path, destination=temp_file_path)
+            print(f"[AI Tutor LOG] Voice downloaded to {temp_file_path}.", flush=True)
 
-            print("[AI Tutor LOG] Sending to Groq Whisper for transcription...", flush=True)
             transcribed_text = await asyncio.to_thread(transcribe_audio_groq, temp_file_path)
-            print(f"[AI Tutor LOG] Transcription result: '{transcribed_text}'", flush=True)
+            print(f"[AI Tutor LOG] Whisper Transcribed: '{transcribed_text}'", flush=True)
 
-            if not transcribed_text or not transcribed_text.strip():
+            try:
+                await status_msg.delete()
+            except Exception:
+                pass
+
+            if not transcribed_text:
                 await message.answer(
                     "🎙️ <b>لم يتم التعرف على صوت أو كلمات واضحة في الرسالة الصوتية.</b>\n\n"
                     "يرجى التحدث بوضوح باللغة الإنجليزية والمحاولة مرة أخرى. ✨",
@@ -187,7 +194,6 @@ async def handle_ai_chat_unified(message: Message, state: FSMContext):
                 reply_markup=get_ai_chat_keyboard()
             )
 
-            print("[AI Tutor LOG] Generating TTS voice pronunciation...", flush=True)
             await send_tts_voice_response(message, ai_reply)
 
         except Exception as e:
@@ -209,8 +215,6 @@ async def handle_ai_chat_unified(message: Message, state: FSMContext):
     # 2. Handle Text
     elif message.text:
         user_text = message.text.strip()
-        print(f"[AI Tutor LOG] ✍️ Processing Text message: '{user_text}'", flush=True)
-
         try:
             await message.bot.send_chat_action(chat_id=message.chat.id, action="typing")
         except Exception:
@@ -233,11 +237,10 @@ async def handle_ai_chat_unified(message: Message, state: FSMContext):
             safe_reply,
             reply_markup=get_ai_chat_keyboard()
         )
-
         await send_tts_voice_response(message, ai_reply)
 
 # =========================================================================
-# Academic Writing Reviewer (University Professor Engine)
+# Academic Writing Reviewer
 # =========================================================================
 
 @ai_router.message(F.text.contains("مصحح الكتابة الأكاديمية") | F.text.contains("Academic Writing"))
@@ -308,7 +311,6 @@ async def handle_process_academic_text(message: Message, state: FSMContext):
         safe_review = html.escape(review_result)
         full_message = header + safe_review
 
-        # Safely split if message exceeds Telegram limit
         if len(full_message) <= 3900:
             await send_safe_message(
                 message,
@@ -335,25 +337,94 @@ async def handle_process_academic_text(message: Message, state: FSMContext):
             parse_mode="HTML"
         )
 
-@ai_router.message(Command("ai"))
-async def handle_ai_command(message: Message):
-    question = message.text.replace("/ai", "", 1).strip() if message.text else ""
+# =========================================================================
+# Daily English Challenge (Interactive Quizmaster Engine)
+# =========================================================================
 
-    if not question:
-        help_msg = (
-            "🤖 <b>Fluence Academy AI Tutor</b>\n\n"
-            "Ask any question about English grammar, vocabulary, pronunciation, or lessons!\n\n"
-            "<b>Usage:</b>\n"
-            "Type <code>/ai</code> followed by your question, or click <b>🤖 المساعد اللغوي (AI Tutor)</b> from the main menu!"
-        )
-        await message.answer(help_msg, parse_mode="HTML")
-        return
+@ai_router.message(F.text.contains("تحدي اليوم") | F.text.contains("Daily Challenge"))
+async def handle_start_daily_challenge(message: Message, state: FSMContext):
+    """Generates a new daily challenge question and waits for answer."""
+    await state.set_state(DailyChallengeStates.waiting_answer)
+    print(f"[Daily Challenge LOG] User @{message.from_user.username} requested a Daily Challenge.", flush=True)
+
+    await message.answer(
+        "🎯 <b>جاري إعداد تحدي اليوم الخاص بك من خبير الأكاديمية...</b>\n"
+        "<i>ثوانٍ معدودة...</i>",
+        parse_mode="HTML"
+    )
 
     try:
         await message.bot.send_chat_action(chat_id=message.chat.id, action="typing")
     except Exception:
         pass
 
-    response = await asyncio.to_thread(chat_with_ai_tutor, question)
-    await message.answer(response)
-    await send_tts_voice_response(message, response)
+    try:
+        question = await asyncio.to_thread(generate_daily_challenge)
+        await state.update_data(current_question=question)
+
+        prompt_text = (
+            "🎯 <b>تحدي اليوم في اللغة الإنجليزية:</b>\n"
+            "═" * 32 + "\n\n"
+            f"{html.escape(question)}\n\n"
+            "✍️ <i>أرسل إجابتك الآن لتقييمها فورياً!</i>"
+        )
+        await send_safe_message(
+            message,
+            prompt_text,
+            reply_markup=get_daily_challenge_keyboard()
+        )
+    except Exception as e:
+        print(f"[Daily Challenge ERROR] Failed to generate challenge: {e}", flush=True)
+        await message.answer(
+            "⚠️ عذراً، حدث خطأ أثناء توليد سؤال التحدي. يرجى الضغط على الزر مرة أخرى للمحاولة.",
+            reply_markup=get_daily_challenge_keyboard()
+        )
+
+@ai_router.message(DailyChallengeStates.waiting_answer, F.text.contains("العودة للقائمة الرئيسية") | F.text.in_(["/exit", "/stop", "خروج", "Exit"]))
+async def handle_exit_daily_challenge(message: Message, state: FSMContext):
+    """Exits Daily Challenge mode and restores main menu."""
+    await state.clear()
+    await message.answer(
+        "✅ <b>تم الخروج من تحدي اليوم بنجاح.</b>\n\n"
+        "ننتظرك غداً في تحدٍ جديد لتطوير مستواك! 🌟",
+        reply_markup=get_main_reply_keyboard(),
+        parse_mode="HTML"
+    )
+
+@ai_router.message(DailyChallengeStates.waiting_answer, F.text.contains("سؤال آخر") | F.text.contains("New Question"))
+async def handle_new_daily_challenge_question(message: Message, state: FSMContext):
+    """Generates another challenge question."""
+    await handle_start_daily_challenge(message, state)
+
+@ai_router.message(DailyChallengeStates.waiting_answer, F.text)
+async def handle_evaluate_daily_challenge_answer(message: Message, state: FSMContext):
+    """Evaluates the student's answer and provides friendly feedback."""
+    user_answer = message.text.strip()
+    data = await state.get_data()
+    question = data.get("current_question", "")
+
+    try:
+        await message.bot.send_chat_action(chat_id=message.chat.id, action="typing")
+    except Exception:
+        pass
+
+    try:
+        evaluation = await asyncio.to_thread(evaluate_daily_challenge, question, user_answer)
+
+        response_text = (
+            "📝 <b>تقييم إجابتك على التحدي:</b>\n"
+            "═" * 32 + "\n\n"
+            f"{html.escape(evaluation)}\n\n"
+            "💡 <i>لخوض تحدٍ آخر اضغط «🎯 سؤال آخر» أو عد للقائمة الرئيسية.</i>"
+        )
+        await send_safe_message(
+            message,
+            response_text,
+            reply_markup=get_daily_challenge_keyboard()
+        )
+    except Exception as e:
+        print(f"[Daily Challenge ERROR] Evaluation failed: {e}", flush=True)
+        await message.answer(
+            "⚠️ حدث خطأ أثناء تقييم إجابتك. يرجى تجربة إرسالها مجدداً.",
+            reply_markup=get_daily_challenge_keyboard()
+        )
