@@ -11,6 +11,9 @@ from datetime import datetime, timezone
 from app.database.connection import AsyncSessionLocal
 from app.database.models import User, Quiz, QuizQuestion, QuizAnswer, QuizAttempt, StudentProgress
 from app.core.config import settings
+
+# 1. Initialize quizzes_router immediately at the top level
+quizzes_router = Router(name="quizzes_router")
 try:
     from app.services.scheduler_service import get_today_lesson, send_daily_lesson_to_user
 except ImportError:
@@ -66,8 +69,6 @@ def save_to_notion(first_name, username, score, level):
             print(f"Notion Success: Saved placement result for {first_name} (Score: {score}/20, Level: {level})")
     except Exception as e:
         print(f"Failed to connect to Notion: {e}")
-
-quizzes_router = Router(name="quizzes_router")
 
 @quizzes_router.callback_query(F.data.startswith("start_quiz_"))
 async def handle_start_quiz(callback: CallbackQuery):
@@ -439,7 +440,7 @@ async def handle_placement_test(message: Message):
     ]
     await message.answer(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard), parse_mode="HTML")
 
-@quizzes_router.callback_query(F.data == "start_placement_test")
+@quizzes_router.callback_query(F.data.in_(["start_placement_test", "retake_placement_test"]))
 async def handle_start_placement_test(callback: CallbackQuery, state: FSMContext):
     """Generates a fresh, randomized 20-question placement test and launches Question 1."""
     questions = sample_diagnostic_placement_questions()
@@ -622,7 +623,7 @@ async def handle_quizzes_and_grades(message: Message):
 async def handle_ignore_header(callback: CallbackQuery):
     await callback.answer()
 
-@quizzes_router.callback_query(F.data == "back_to_quizzes_menu")
+@quizzes_router.callback_query(F.data.in_(["back_to_quizzes_menu", "open_quizzes_hub"]))
 async def handle_back_to_quizzes_menu(callback: CallbackQuery):
     """Returns to the quizzes menu."""
     await callback.answer()

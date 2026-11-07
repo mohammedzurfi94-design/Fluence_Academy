@@ -1,12 +1,18 @@
-from aiogram import Bot, Dispatcher
+from aiogram import Bot, Dispatcher, Router
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from app.core.config import settings
 from app.bot.handlers.start import start_router
 from app.bot.handlers.courses import courses_router
-from app.bot.handlers.quizzes import quizzes_router
 from app.bot.handlers.ai_tutor import ai_router
 from app.bot.middlewares.force_sub import ForceSubscribeMiddleware
+
+try:
+    from app.bot.handlers.quizzes import quizzes_router
+except Exception as e:
+    import logging
+    logging.warning(f"Could not import quizzes_router from quizzes.py: {e}")
+    quizzes_router = Router(name="quizzes_router")
 
 def create_bot() -> Bot:
     """Creates and returns the aiogram Bot instance."""

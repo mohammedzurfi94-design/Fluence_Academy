@@ -5,7 +5,7 @@ import html
 import re
 from aiogram import Router, F
 from aiogram.filters import Command
-from aiogram.types import Message, FSInputFile
+from aiogram.types import Message, CallbackQuery, FSInputFile
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
 
@@ -113,6 +113,13 @@ async def handle_start_ai_tutor_chat(message: Message, state: FSMContext):
         reply_markup=get_ai_chat_keyboard(),
         parse_mode="HTML"
     )
+
+@ai_router.callback_query(F.data == "start_ai_tutor_chat")
+async def handle_start_ai_tutor_chat_callback(callback: CallbackQuery, state: FSMContext):
+    """Callback launcher for AI English Tutor from inline menu."""
+    await callback.answer()
+    if callback.message:
+        await handle_start_ai_tutor_chat(callback.message, state)
 
 @ai_router.message(AITutorStates.chatting, F.text.contains("إنهاء المحادثة") | F.text.in_(["/exit", "/stop", "خروج", "Exit"]))
 async def handle_exit_ai_tutor_chat(message: Message, state: FSMContext):
@@ -309,6 +316,13 @@ async def handle_start_academic_writing(message: Message, state: FSMContext):
         parse_mode="HTML"
     )
 
+@ai_router.callback_query(F.data == "start_academic_reviewer_chat")
+async def handle_start_academic_writing_callback(callback: CallbackQuery, state: FSMContext):
+    """Callback launcher for Academic Writing Reviewer from inline menu."""
+    await callback.answer()
+    if callback.message:
+        await handle_start_academic_writing(callback.message, state)
+
 @ai_router.message(AcademicWritingStates.reviewing, F.text.contains("العودة للقائمة الرئيسية") | F.text.contains("إنهاء") | F.text.in_(["/exit", "/stop", "خروج", "Exit"]))
 async def handle_exit_academic_writing(message: Message, state: FSMContext):
     """Exits Academic Writing mode and restores main menu."""
@@ -427,6 +441,13 @@ async def handle_start_daily_challenge(message: Message, state: FSMContext):
             parse_mode="HTML"
         )
         await state.clear()
+
+@ai_router.callback_query(F.data == "open_daily_challenge")
+async def handle_start_daily_challenge_callback(callback: CallbackQuery, state: FSMContext):
+    """Callback launcher for Daily English Challenge from inline menu."""
+    await callback.answer()
+    if callback.message:
+        await handle_start_daily_challenge(callback.message, state)
 
 @ai_router.message(DailyChallengeStates.waiting_answer, F.text.contains("العودة للقائمة الرئيسية") | F.text.in_(["/exit", "/stop", "خروج", "Exit"]))
 async def handle_exit_daily_challenge(message: Message, state: FSMContext):

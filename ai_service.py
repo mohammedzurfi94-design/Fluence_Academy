@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 DEFAULT_GROQ_API_KEY = "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"
 DEFAULT_GEMINI_API_KEY = "AQ.Ab8RN6LFDPHEQNAEPrx6x3PlcZFKYQl0wLs4ZJzsQ9xx0Dwo2Q"
 
-GROQ_MODELS = ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.8-27b"]
+GROQ_MODELS = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768", "gemma2-9b-it"]
 
 SYSTEM_INSTRUCTION = (
     "You are a friendly and professional English language tutor at Fluence English Academy. "
@@ -243,7 +243,7 @@ def review_academic_writing(student_text: str, api_key: Optional[str] = None) ->
         {"role": "user", "content": student_text}
     ]
 
-    for model_name in ["openai/gpt-oss-120b", "llama3-70b-8192", "llama-3.3-70b-versatile", "openai/gpt-oss-20b", "qwen/qwen3.8-27b"]:
+    for model_name in ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768", "gemma2-9b-it"]:
         try:
             resp = requests.post(
                 url,
@@ -254,7 +254,7 @@ def review_academic_writing(student_text: str, api_key: Optional[str] = None) ->
                     "temperature": 0.4,
                     "max_tokens": 1500
                 },
-                timeout=30
+                timeout=45
             )
             if resp.status_code == 200:
                 data = resp.json()
@@ -287,13 +287,13 @@ def generate_daily_challenge(api_key: Optional[str] = None) -> str:
         {"role": "user", "content": "Give me a challenge"}
     ]
 
-    for model_name in ["openai/gpt-oss-20b", "llama3-8b-8192", "openai/gpt-oss-120b", "llama-3.3-70b-versatile", "qwen/qwen3.8-27b"]:
+    for model_name in ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768", "gemma2-9b-it"]:
         try:
             resp = requests.post(
                 url,
                 headers=headers,
                 json={"model": model_name, "messages": messages, "temperature": 0.8, "max_tokens": 400},
-                timeout=15
+                timeout=25
             )
             if resp.status_code == 200:
                 return resp.json()["choices"][0]["message"]["content"].strip()
@@ -316,13 +316,13 @@ def evaluate_daily_challenge(question: str, user_answer: str, api_key: Optional[
         {"role": "user", "content": f"My answer is: {user_answer}"}
     ]
 
-    for model_name in ["openai/gpt-oss-20b", "llama3-8b-8192", "openai/gpt-oss-120b", "llama-3.3-70b-versatile", "qwen/qwen3.8-27b"]:
+    for model_name in ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768", "gemma2-9b-it"]:
         try:
             resp = requests.post(
                 url,
                 headers=headers,
-                json={"model": model_name, "messages": messages, "temperature": 0.4, "max_tokens": 500},
-                timeout=15
+                json={"model": model_name, "messages": messages, "temperature": 0.4, "max_tokens": 600},
+                timeout=25
             )
             if resp.status_code == 200:
                 return resp.json()["choices"][0]["message"]["content"].strip()

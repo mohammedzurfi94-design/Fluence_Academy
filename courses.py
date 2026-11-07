@@ -49,10 +49,7 @@ async def handle_back_to_courses(callback: CallbackQuery):
         await callback.message.answer(text, reply_markup=get_courses_catalog_keyboard(), parse_mode="HTML")
     await callback.answer()
 
-@courses_router.callback_query(F.data == "back_to_main_menu")
-async def handle_back_to_main_menu(callback: CallbackQuery):
-    """Provides navigation feedback to the user."""
-    await callback.answer("القائمة الرئيسية متوفرة دائماً في الأسفل 👇", show_alert=False)
+
 
 # ---------------------------------------------------------------------------
 # 2. General English Hierarchy (Levels A1, A2, B1, B2)
@@ -444,7 +441,7 @@ async def handle_study_materials_library(message: Message):
 TEACHER_GRADUATION_PROJECT_FILE_ID = "BQACAgIAAxkBAAFXO51q65mbmqCmN5Iicsz9YPzcBtOx5wACxZ4AAjy_wUrqdXkyS-ifnj0E"
 TEACHER_THESIS_DEFENSE_FILE_ID = "BQACAgIAAxkBAAFXO6Nq65pfns8uqStnOsFaOWIh_KSNLwACx54AAjy_wUqearFEUlBD3j0E"
 
-@courses_router.callback_query(F.data == "back_to_library")
+@courses_router.callback_query(F.data.in_(["back_to_library", "open_library"]))
 async def handle_back_to_library(callback: CallbackQuery):
     """Returns to the digital library categories menu."""
     text = (
