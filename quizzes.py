@@ -1,3 +1,6 @@
+import asyncio
+import os
+import requests
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from sqlalchemy import select
@@ -5,6 +8,52 @@ from datetime import datetime, timezone
 
 from app.database.connection import AsyncSessionLocal
 from app.database.models import User, Quiz, QuizQuestion, QuizAnswer, QuizAttempt, StudentProgress
+from app.core.config import settings
+from app.services.scheduler_service import get_today_lesson, send_daily_lesson_to_user
+
+def save_to_notion(first_name, username, score, level):
+    url = "https://api.notion.com/v1/pages"
+    
+    # تفاصيل الربط الخاصة بـ Fluence Academy
+    token = os.getenv("NOTION_API_TOKEN") or getattr(settings, "NOTION_API_TOKEN", None) or "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"
+    database_id = os.getenv("NOTION_DATABASE_ID") or getattr(settings, "NOTION_DATABASE_ID", None) or "7ae3e7572bf54b198a13816b43c90e05"
+
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+        "Notion-Version": "2022-06-28"
+    }
+    
+    # معالجة حالة عدم وجود معرف (Username) للطالب
+    username_text = f"@{username}" if username else "لا يوجد معرف"
+
+    # هيكل البيانات المطابق لأعمدة الجدول
+    data = {
+        "parent": {"database_id": database_id},
+        "properties": {
+            "Name": {
+                "title": [{"text": {"content": first_name or "طالب مجهول"}}]
+            },
+            "Username": {
+                "rich_text": [{"text": {"content": username_text}}]
+            },
+            "Score": {
+                "number": score
+            },
+            "Level": {
+                "rich_text": [{"text": {"content": str(level)}}]
+            }
+        }
+    }
+
+    try:
+        response = requests.post(url, headers=headers, json=data, timeout=10)
+        if response.status_code not in [200, 201]:
+            print(f"Notion Error: {response.text}")
+        else:
+            print(f"Notion Success: Saved placement result for {first_name} (Score: {score}/20, Level: {level})")
+    except Exception as e:
+        print(f"Failed to connect to Notion: {e}")
 
 quizzes_router = Router(name="quizzes_router")
 
@@ -363,7 +412,7 @@ def build_placement_question_keyboard(q_idx: int, score: int) -> InlineKeyboardM
     keyboard.append([InlineKeyboardButton(text="❌ إلغاء الاختبار | Cancel", callback_data="back_to_courses")])
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
-@quizzes_router.message(F.text.in_(["📝 اختبار المستوى | Placement Test", "اختبار المستوى", "Placement Test"]))
+@quizzes_router.message(F.text.contains("اختبار المستوى") | F.text.contains("Placement Test"))
 async def handle_placement_test(message: Message):
     """Displays the updated 20-question Placement Test overview and launch button."""
     text = (
@@ -418,6 +467,9 @@ async def handle_placement_test_answer(callback: CallbackQuery):
     else:
         # Placement test completed!
         level_name, target_callback = get_placement_level_info(score)
+        final_score = score
+        user_level = level_name
+        message = callback.message
         result_text = (
             "📊 <b>نتيجة اختبار تحديد المستوى | Placement Test Result</b>\n\n"
             f"لقد أجبت بشكل صحيح على <b>{score}</b> من أصل {len(PLACEMENT_QUESTIONS)} سؤالاً.\n"
@@ -470,9 +522,27 @@ async def handle_placement_test_answer(callback: CallbackQuery):
             parse_mode="HTML"
         )
 
+        # استدعاء دالة حفظ النتيجة في Notion
+        try:
+            first_name = (message.chat.first_name if (message and message.chat) else None) or (tg_user.first_name if tg_user else "طالب مجهول")
+            username = (message.chat.username if (message and message.chat) else None) or (tg_user.username if tg_user else None)
+
+            # تنفيذ غير حاجب (Non-blocking async thread) لضمان عدم بطء أو توقف البوت
+            asyncio.create_task(
+                asyncio.to_thread(
+                    save_to_notion,
+                    first_name,
+                    username,
+                    final_score,
+                    user_level
+                )
+            )
+        except Exception as e:
+            print(f"[Notion Integration Error] Failed to schedule Notion push: {e}")
+
     await callback.answer()
 
-@quizzes_router.message(F.text.in_(["🎯 الاختبارات اليومية | Quizzes", "الاختبارات اليومية", "Quizzes", "📝 Quizzes & Grades"]))
+@quizzes_router.message(F.text.contains("الاختبارات اليومية") | F.text.contains("Quizzes"))
 async def handle_quizzes_and_grades(message: Message):
     """Displays student quiz history, daily challenges, and scores."""
     tg_user = message.from_user
@@ -511,12 +581,172 @@ async def handle_quizzes_and_grades(message: Message):
     else:
         text += "لم تقم بأداء أي اختبارات بعد. ابدأ الآن بتحدي معلوماتك اليومية! 🚀\n\n"
 
-    keyboard = []
+    keyboard = [
+        [InlineKeyboardButton(text="💡 معلومة اليوم واختبارها (متجددة آلياً 🎙️)", callback_data="open_daily_info")],
+        [InlineKeyboardButton(text="🔄 اختبار ذكي متجدد (AI Quiz Generator)", callback_data="refresh_daily_lesson")],
+    ]
+
     if available_quizzes:
-        text += "📝 <b>اختر اختباراً للبدء الآن:</b>"
+        keyboard.append([InlineKeyboardButton(text="─── 📚 اختبارات الدروس والكورسات ───", callback_data="ignore_header")])
         for q in available_quizzes:
             keyboard.append([InlineKeyboardButton(text=f"✍️ {q.title}", callback_data=f"start_quiz_{q.lesson_id or q.id}")])
 
     keyboard.append([InlineKeyboardButton(text="📚 الانتقال للدورات | Courses", callback_data="back_to_courses")])
 
     await message.answer(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard), parse_mode="HTML")
+
+@quizzes_router.callback_query(F.data == "ignore_header")
+async def handle_ignore_header(callback: CallbackQuery):
+    await callback.answer()
+
+@quizzes_router.callback_query(F.data == "back_to_quizzes_menu")
+async def handle_back_to_quizzes_menu(callback: CallbackQuery):
+    """Returns to the quizzes menu."""
+    await callback.answer()
+    if callback.message:
+        await handle_quizzes_and_grades(callback.message)
+
+@quizzes_router.callback_query(F.data == "open_daily_info")
+async def handle_open_daily_info(callback: CallbackQuery):
+    """Sends today's educational info, audio pronunciation, and quiz button."""
+    await callback.answer("جاري تجهيز معلومة اليوم واختبارها...")
+    lesson = get_today_lesson(force_refresh=False)
+    await send_daily_lesson_to_user(callback.bot, callback.message.chat.id, lesson, send_voice=True)
+
+@quizzes_router.callback_query(F.data == "refresh_daily_lesson")
+async def handle_refresh_daily_lesson(callback: CallbackQuery):
+    """Generates a fresh new AI English lesson and quiz on demand."""
+    await callback.answer("🔄 جاري توليد معلومة واختبار جديد بالذكاء الاصطناعي...")
+    await callback.message.answer(
+        "⚡ <b>جاري إعداد محتوى تعليمي واختبار جديد بالذكاء الاصطناعي...</b>\n<i>ثوانٍ معدودة...</i>",
+        parse_mode="HTML"
+    )
+    lesson = await asyncio.to_thread(get_today_lesson, force_refresh=True)
+    await send_daily_lesson_to_user(callback.bot, callback.message.chat.id, lesson, send_voice=True)
+
+@quizzes_router.callback_query(F.data == "start_daily_info_quiz")
+async def handle_start_daily_info_quiz(callback: CallbackQuery):
+    """Starts the dynamic quiz for today's lesson."""
+    lesson = get_today_lesson(force_refresh=False)
+    questions = lesson.get("questions", [])
+
+    if not questions:
+        await callback.answer("عذراً، الأسئلة قيد التجهيز.", show_alert=True)
+        return
+
+    first_q = questions[0]
+    total_q = len(questions)
+
+    text = (
+        f"📝 <b>اختبار معلومة اليوم: {lesson.get('topic', 'English Lesson')}</b>\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"<b>السؤال 1 من {total_q}:</b>\n\n"
+        f"❓ {first_q['question']}"
+    )
+
+    keyboard = []
+    for opt_idx, opt_text in enumerate(first_q.get("options", [])):
+        keyboard.append([
+            InlineKeyboardButton(
+                text=opt_text,
+                callback_data=f"dquiz_0_{opt_idx}_0"
+            )
+        ])
+
+    await callback.message.answer(
+        text,
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
+        parse_mode="HTML"
+    )
+    await callback.answer()
+
+@quizzes_router.callback_query(F.data.startswith("dquiz_"))
+async def handle_daily_quiz_answer(callback: CallbackQuery):
+    """Evaluates student's answer for dynamic daily quiz and advances to next question or final score."""
+    parts = callback.data.split("_")
+    q_idx = int(parts[1])
+    selected_opt = int(parts[2])
+    current_score = int(parts[3])
+
+    lesson = get_today_lesson(force_refresh=False)
+    questions = lesson.get("questions", [])
+
+    if q_idx >= len(questions):
+        await callback.answer("انتهى الاختبار.", show_alert=True)
+        return
+
+    current_q = questions[q_idx]
+    correct_idx = current_q.get("correct_index", 0)
+    is_correct = (selected_opt == correct_idx)
+    explanation = current_q.get("explanation", "")
+
+    if is_correct:
+        current_score += 1
+        feedback = "✅ <b>إجابة صحيحة! (Correct!)</b>"
+    else:
+        correct_answer_text = current_q["options"][correct_idx] if correct_idx < len(current_q["options"]) else ""
+        feedback = f"❌ <b>إجابة خاطئة! (Incorrect)</b>\nالجواب الصحيح: <b>«{correct_answer_text}»</b>"
+
+    if explanation:
+        feedback += f"\n<i>💡 التوضيح: {explanation}</i>"
+
+    next_q_idx = q_idx + 1
+    total_q = len(questions)
+
+    if next_q_idx < total_q:
+        next_q = questions[next_q_idx]
+        text = (
+            f"{feedback}\n\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"<b>السؤال {next_q_idx + 1} من {total_q}:</b>\n\n"
+            f"❓ {next_q['question']}"
+        )
+        keyboard = []
+        for opt_idx, opt_text in enumerate(next_q.get("options", [])):
+            keyboard.append([
+                InlineKeyboardButton(
+                    text=opt_text,
+                    callback_data=f"dquiz_{next_q_idx}_{opt_idx}_{current_score}"
+                )
+            ])
+
+        await callback.message.edit_text(
+            text,
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
+            parse_mode="HTML"
+        )
+    else:
+        percentage = round((current_score / total_q) * 100, 1)
+        passed = percentage >= 70.0
+
+        if passed:
+            result_header = "🎉 <b>أحسنت صنعاً! اجتزت اختبار المعلومة بنجاح</b> 🌟"
+            status_text = "النتيجة: <b>ناجح ومتميز ✅</b>"
+        else:
+            result_header = "📚 <b>تدريب جيد! راجع المعلومة وحاول مجدداً</b>"
+            status_text = "النتيجة: <b>تحتاج لمراجعة إضافية ❌</b>"
+
+        final_text = (
+            f"{feedback}\n\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"{result_header}\n\n"
+            f"📌 <b>الموضوع:</b> {lesson.get('topic')}\n"
+            f"📊 <b>درجتك:</b> {current_score} من {total_q} ({percentage}%)\n"
+            f"{status_text}\n\n"
+            f"✨ <i>يتم تحديث معلومات وأسئلة الأكاديمية يومياً وفق جدول دراسي منتظم!</i>"
+        )
+
+        keyboard = [
+            [InlineKeyboardButton(text="🔄 معلومة واختبار آخر", callback_data="refresh_daily_lesson")],
+            [InlineKeyboardButton(text="🔙 العودة لقسم الاختبارات", callback_data="back_to_quizzes_menu")],
+            [InlineKeyboardButton(text="📚 الدورات الأكاديمية", callback_data="back_to_courses")]
+        ]
+
+        await callback.message.edit_text(
+            final_text,
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
+            parse_mode="HTML"
+        )
+
+    await callback.answer()
+

@@ -24,9 +24,14 @@ class Settings(BaseSettings):
     DEFAULT_ADMIN_USERNAME: str = "admin"
     DEFAULT_ADMIN_PASSWORD: str = "adminpassword123"
 
-    # AI Tutor (Disabled initially)
-    AI_ENABLED: bool = False
-    GEMINI_API_KEY: Optional[str] = None
+    # AI Tutor
+    AI_ENABLED: bool = True
+    GEMINI_API_KEY: Optional[str] = "AQ.Ab8RN6LFDPHEQNAEPrx6x3PlcZFKYQl0wLs4ZJzsQ9xx0Dwo2Q"
+    GROQ_API_KEY: Optional[str] = None
+
+    # Notion Integration
+    NOTION_API_TOKEN: Optional[str] = None
+    NOTION_DATABASE_ID: Optional[str] = None
 
     model_config = SettingsConfigDict(
         env_file=str(BASE_DIR / ".env"),
