@@ -1,146 +1,163 @@
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
 
 def get_main_reply_keyboard() -> ReplyKeyboardMarkup:
-    """
-    Returns the bilingual main menu keyboard:
-    Row 1: [ 📚 الدورات التدريبية | Courses ] [ 📝 اختبار المستوى | Placement Test ]
-    Row 2: [ 🎯 الاختبارات اليومية | Quizzes ] [ 📁 الملفات والمواد | Study Files & Materials ]
-    Row 3: [ 🤖 المساعد اللغوي ] [ 📝 مصحح الكتابة الأكاديمية ]
-    Row 4: [ ✨ عن الأكاديمية | About Fluence ] [ 💬 الدعم والتواصل | Help & Support ]
-    """
+    """Main persistent navigation keyboard for Fluence Academy."""
     keyboard = [
         [
-            KeyboardButton(text="📚 الدورات التدريبية | Courses"),
-            KeyboardButton(text="📝 اختبار المستوى | Placement Test")
+            KeyboardButton(text="📚 الدورات الأكاديمية | Courses"),
+            KeyboardButton(text="🎯 الاختبارات اليومية | Quizzes")
         ],
         [
-            KeyboardButton(text="🎯 الاختبارات اليومية | Quizzes"),
-            KeyboardButton(text="📁 الملفات والمواد | Study Files & Materials")
+            KeyboardButton(text="🎯 تحدي اليوم"),
+            KeyboardButton(text="🤖 المساعد اللغوي (AI Tutor)")
         ],
         [
-            KeyboardButton(text="🤖 المساعد اللغوي"),
             KeyboardButton(text="📝 مصحح الكتابة الأكاديمية")
         ],
         [
-            KeyboardButton(text="✨ عن الأكاديمية | About Fluence"),
-            KeyboardButton(text="💬 الدعم والتواصل | Help & Support")
+            KeyboardButton(text="📊 درجاتي وإحصائياتي | My Stats"),
+            KeyboardButton(text="📖 المكتبة التعليمية | Library")
+        ],
+        [
+            KeyboardButton(text="ℹ️ عن الأكاديمية | About Us"),
+            KeyboardButton(text="💬 الدعم الفني والاستفسارات | Support")
         ]
     ]
     return ReplyKeyboardMarkup(
         keyboard=keyboard,
         resize_keyboard=True,
-        persistent=True,
-        input_field_placeholder="اختر من القائمة أدناه | Choose an option..."
+        input_field_placeholder="اختر من القائمة الرئيسية للأكاديمية..."
     )
 
 def get_ai_chat_keyboard() -> ReplyKeyboardMarkup:
-    """Returns the chat keyboard while conversing with the AI Tutor."""
+    """Keyboard active during interactive English Tutor chat mode."""
     keyboard = [
-        [
-            KeyboardButton(text="🔙 إنهاء المحادثة")
-        ]
+        [KeyboardButton(text="🔙 إنهاء المحادثة والعودة للقائمة الرئيسية")]
     ]
     return ReplyKeyboardMarkup(
         keyboard=keyboard,
         resize_keyboard=True,
-        persistent=True,
-        input_field_placeholder="اكتب رسالتك بالإنجليزية | Type in English..."
+        input_field_placeholder="تحدث بالإنجليزية، اسأل عن قاعدة، أو أرسل فويس نوت 🎙️..."
     )
 
 def get_academic_writing_keyboard() -> ReplyKeyboardMarkup:
-    """Returns the keyboard while in Academic Writing Review mode."""
+    """Keyboard for Academic Writing Reviewer mode."""
     keyboard = [
-        [
-            KeyboardButton(text="🔙 العودة للقائمة الرئيسية")
-        ]
+        [KeyboardButton(text="🔙 العودة للقائمة الرئيسية")]
     ]
     return ReplyKeyboardMarkup(
         keyboard=keyboard,
         resize_keyboard=True,
-        persistent=True,
-        input_field_placeholder="أرسل مقالك أو نصك الأكاديمي للتدقيق..."
+        input_field_placeholder="أرسل مقالك أو نصك الأكاديمي للتدقيق والتقييم..."
+    )
+
+def get_daily_challenge_keyboard() -> ReplyKeyboardMarkup:
+    """Keyboard for Daily Challenge mode."""
+    keyboard = [
+        [KeyboardButton(text="🎯 سؤال آخر | New Question")],
+        [KeyboardButton(text="🔙 العودة للقائمة الرئيسية")]
+    ]
+    return ReplyKeyboardMarkup(
+        keyboard=keyboard,
+        resize_keyboard=True,
+        input_field_placeholder="اكتب إجابتك هنا وسيقوم الأستاذ بتقييمها..."
     )
 
 def get_channel_join_keyboard(channel_url: str) -> InlineKeyboardMarkup:
-    """Returns an inline button asking student to join the required channel."""
+    """Inline keyboard requiring channel subscription."""
     keyboard = [
-        [InlineKeyboardButton(text="📢 انضم إلى القناة الرسمية", url=channel_url)],
-        [InlineKeyboardButton(text="✅ تحقق من الاشتراك", callback_data="check_channel_joined")]
+        [InlineKeyboardButton(text="📢 انضم إلى قناة الأكاديمية", url=channel_url)],
+        [InlineKeyboardButton(text="✅ تحقّق من اشتراكي الآن", callback_data="check_subscription")]
     ]
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 def get_courses_catalog_keyboard() -> InlineKeyboardMarkup:
-    """
-    Main Courses Categories Keyboard:
-    - 🏛️ كورسات اللغة الأكاديمية | Academic English
-    - 🗣️ كورسات اللغة العامة | General English
-    - 🎯 كورس الامتحان التنافسي | Competitive Exam
-    - 🇮🇶 كورس الاختبار الوطني (INELT) | National Exam
-    - 🔙 العودة للقائمة الرئيسية | Main Menu
-    """
+    """Top-level courses categories."""
     keyboard = [
-        [InlineKeyboardButton(text="🏛️ كورسات اللغة الأكاديمية | Academic English", callback_data="cat_academic")],
-        [InlineKeyboardButton(text="🗣️ كورسات اللغة العامة | General English", callback_data="cat_general")],
-        [InlineKeyboardButton(text="🎯 كورس الامتحان التنافسي | Competitive Exam", callback_data="course_competitive")],
-        [InlineKeyboardButton(text="🇮🇶 كورس الاختبار الوطني (INELT) | National Exam", callback_data="course_inelt")],
-        [InlineKeyboardButton(text="🔙 العودة للقائمة الرئيسية | Main Menu", callback_data="back_to_main_menu")]
-    ]
-    return InlineKeyboardMarkup(inline_keyboard=keyboard)
-
-def get_general_english_keyboard() -> InlineKeyboardMarkup:
-    """General English levels."""
-    keyboard = [
-        [InlineKeyboardButton(text="🌱 المستوى المبتدئ | Beginner (A1)", callback_data="level_a1")],
-        [InlineKeyboardButton(text="📘 المستوى الأساسي | Elementary (A2)", callback_data="level_a2")],
-        [InlineKeyboardButton(text="📙 المستوى قبل المتوسط | Pre-Intermediate (B1)", callback_data="level_b1")],
-        [InlineKeyboardButton(text="📕 المستوى المتوسط | Intermediate & Upper (B2)", callback_data="level_b2")],
-        [InlineKeyboardButton(text="🎓 المستوى المتقدم | Advanced (C1)", callback_data="level_c1")],
-        [InlineKeyboardButton(text="🏆 مستوى الإتقان التام | Proficiency (C2)", callback_data="level_c2")],
-        [InlineKeyboardButton(text="🔙 رجوع | Back", callback_data="back_to_courses")]
+        [InlineKeyboardButton(text="🎓 البرنامج الأكاديمي الجامعي (4 سنوات)", callback_data="cat_academic")],
+        [InlineKeyboardButton(text="🗣️ اللغة الإنجليزية العامة والمهارات", callback_data="cat_general")],
+        [InlineKeyboardButton(text="🔙 القائمة الرئيسية", callback_data="back_to_main")]
     ]
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 def get_academic_english_keyboard() -> InlineKeyboardMarkup:
-    """Academic English tracks."""
+    """University 4-year curriculum keyboard."""
     keyboard = [
-        [InlineKeyboardButton(text="✍️ الكتابة الأكاديمية والبحوث | Academic Writing & Research", callback_data="acad_writing")],
-        [InlineKeyboardButton(text="🎤 مهارات العرض والإلقاء | Academic Presentations", callback_data="acad_presentations")],
-        [InlineKeyboardButton(text="🗣️ النطق والتجويد اللفظي | Pronunciation & Phonetics", callback_data="acad_phonetics")],
-        [InlineKeyboardButton(text="🔙 رجوع | Back", callback_data="back_to_courses")]
+        [
+            InlineKeyboardButton(text="السنة الأولى | First Year", callback_data="acad_year_1"),
+            InlineKeyboardButton(text="السنة الثانية | Second Year", callback_data="acad_year_2")
+        ],
+        [
+            InlineKeyboardButton(text="السنة الثالثة | Third Year", callback_data="acad_year_3"),
+            InlineKeyboardButton(text="السنة الرابعة | Fourth Year", callback_data="acad_year_4")
+        ],
+        [InlineKeyboardButton(text="🔙 رجوع للأقسام", callback_data="courses_catalog")]
     ]
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
-def get_exam_details_keyboard(contact_url: str = "https://t.me/Alzurfi1", button_text: str = "📲 للتسجيل والتواصل مع الإدارة | Contact & Register") -> InlineKeyboardMarkup:
-    """Direct registration and contact keyboard for Competitive Exam and INELT."""
+def get_general_english_keyboard() -> InlineKeyboardMarkup:
+    """General English CEFR tracks."""
     keyboard = [
-        [InlineKeyboardButton(text=button_text, url=contact_url)],
-        [InlineKeyboardButton(text="🔙 رجوع | Back", callback_data="back_to_courses")]
+        [
+            InlineKeyboardButton(text="A1 - المبتدئ", callback_data="gen_a1"),
+            InlineKeyboardButton(text="A2 - الأساسي", callback_data="gen_a2")
+        ],
+        [
+            InlineKeyboardButton(text="B1 - المتوسط", callback_data="gen_b1"),
+            InlineKeyboardButton(text="B2 - فوق المتوسط", callback_data="gen_b2")
+        ],
+        [
+            InlineKeyboardButton(text="C1 - المتقدم", callback_data="gen_c1"),
+            InlineKeyboardButton(text="C2 - الإتقان والطلاقة", callback_data="gen_c2")
+        ],
+        [InlineKeyboardButton(text="🔙 رجوع للأقسام", callback_data="courses_catalog")]
     ]
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
-def get_sub_level_keyboard(parent_back: str, browse_callback: str = "browse_available_lessons") -> InlineKeyboardMarkup:
-    """Returns registration button and back button to parent category and main catalog."""
+def get_sub_level_keyboard(category_code: str) -> InlineKeyboardMarkup:
+    """Interactive sub-level keyboard."""
     keyboard = [
-        [InlineKeyboardButton(text="💬 التواصل مع الأستاذ للتسجيل", url="https://t.me/Fluenceacademy")],
-        [InlineKeyboardButton(text="📚 تصفح الدروس المتاحة | Available Lessons", callback_data=browse_callback)],
-        [InlineKeyboardButton(text="🔙 رجوع | Back", callback_data=parent_back)]
+        [
+            InlineKeyboardButton(text="📖 تفاصيل المستوى", callback_data=f"info_{category_code}"),
+            InlineKeyboardButton(text="📝 اختبار تحديد المستوى", callback_data=f"placement_{category_code}")
+        ],
+        [
+            InlineKeyboardButton(text="📚 المواد والمحاضرات", callback_data=f"materials_{category_code}"),
+            InlineKeyboardButton(text="💬 حلقة نقاش الطلاب", callback_data=f"discussion_{category_code}")
+        ],
+        [InlineKeyboardButton(text="🔙 العودة لقائمة المستويات", callback_data="cat_general")]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+def get_exam_details_keyboard(exam_code: str) -> InlineKeyboardMarkup:
+    """Exam preparation actions."""
+    keyboard = [
+        [
+            InlineKeyboardButton(text="📋 هيكل ومحتوى الاختبار", callback_data=f"struct_{exam_code}"),
+            InlineKeyboardButton(text="🎯 خطة دراسية مكثفة", callback_data=f"plan_{exam_code}")
+        ],
+        [
+            InlineKeyboardButton(text="🧪 اختبار تجريبي كامل (Mock)", callback_data=f"mock_{exam_code}"),
+            InlineKeyboardButton(text="💡 استراتيجيات تحقيق الدرجة", callback_data=f"tips_{exam_code}")
+        ],
+        [InlineKeyboardButton(text="🔙 العودة لقائمة الاختبارات", callback_data="courses_catalog")]
     ]
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 def get_library_keyboard() -> InlineKeyboardMarkup:
-    """Library Categories Keyboard."""
+    """Educational Library resources."""
     keyboard = [
-        [InlineKeyboardButton(text="🎁 الملفات الخاصة بالأستاذ | Teacher's Exclusive Files", callback_data="files_teacher")],
-        [InlineKeyboardButton(text="📝 ملخصات القواعد | Grammar Summaries", callback_data="files_grammar")],
-        [InlineKeyboardButton(text="🗣 أدلة التلفظ | Phonetics Guides", callback_data="files_phonetics")],
-        [InlineKeyboardButton(text="🎯 نماذج الامتحانات | Exam Past Papers", callback_data="files_exams")],
-        [InlineKeyboardButton(text="🔙 العودة للقائمة الرئيسية | Main Menu", callback_data="back_to_main_menu")]
+        [InlineKeyboardButton(text="📚 ملخصات قواعد اللغة (PDF)", callback_data="lib_grammar_pdf")],
+        [InlineKeyboardButton(text="🎧 نصوص استماع وتمارين صوتية", callback_data="lib_audio_transcripts")],
+        [InlineKeyboardButton(text="📝 بنك نماذج وأسئلة الامتحانات", callback_data="lib_exam_bank")],
+        [InlineKeyboardButton(text="📖 قوائم المفردات الأكاديمية (AWL)", callback_data="lib_vocab_lists")],
+        [InlineKeyboardButton(text="🔙 القائمة الرئيسية", callback_data="back_to_main")]
     ]
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 def get_library_back_keyboard() -> InlineKeyboardMarkup:
-    """Returns back button to the digital library menu."""
+    """Back button for library sections."""
     keyboard = [
-        [InlineKeyboardButton(text="🔙 رجوع | Back", callback_data="back_to_library")]
+        [InlineKeyboardButton(text="🔙 العودة للمكتبة التعليمية", callback_data="open_library")]
     ]
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
