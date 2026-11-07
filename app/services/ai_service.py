@@ -2,6 +2,7 @@ import os
 import logging
 import warnings
 import requests
+import re
 from typing import Optional, List, Dict
 from app.core.config import settings
 
@@ -72,7 +73,6 @@ def transcribe_audio_groq(file_path: str, api_key: Optional[str] = None) -> str:
     if key:
         key = str(key).strip().strip("'\"")
 
-    # Method 1: Try official groq SDK
     try:
         from groq import Groq
         client = Groq(api_key=key)
@@ -88,7 +88,6 @@ def transcribe_audio_groq(file_path: str, api_key: Optional[str] = None) -> str:
     except Exception as sdk_err:
         logger.warning(f"[Groq SDK Whisper Warning] {sdk_err}, trying direct HTTP...")
 
-    # Method 2: Direct HTTP fallback
     url = "https://api.groq.com/openai/v1/audio/transcriptions"
     headers = {"Authorization": f"Bearer {key}"}
     for model_name in ["whisper-large-v3", "whisper-large-v3-turbo"]:
@@ -111,6 +110,25 @@ def transcribe_audio_groq(file_path: str, api_key: Optional[str] = None) -> str:
             logger.warning(f"[Groq HTTP Exception {model_name}] {http_err}")
 
     raise Exception("Could not transcribe audio using Groq Whisper.")
+
+def clean_text_for_tts(text: str) -> str:
+    """Cleans markdown, html tags, and excessive formatting for smooth natural speech."""
+    clean = re.sub(r"<[^>]+>", "", text)
+    clean = re.sub(r"[*_`#~]", "", clean)
+    clean = re.sub(r"[^\w\s.,!?'\"-]", " ", clean)
+    clean = re.sub(r"\s+", " ", clean).strip()
+    return clean
+
+def text_to_speech_gtts(text: str, output_path: str, lang: str = "en", tld: str = "co.uk") -> str:
+    """Converts English tutor reply to speech using gTTS with British Accent ('co.uk')."""
+    from gtts import gTTS
+    cleaned_text = clean_text_for_tts(text)
+    if not cleaned_text:
+        cleaned_text = "Keep practicing English every day!"
+    
+    tts = gTTS(text=cleaned_text, lang=lang, tld=tld, slow=False)
+    tts.save(output_path)
+    return output_path
 
 def get_configured_model():
     """Configures and returns the gemini model with System Instruction."""
