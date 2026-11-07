@@ -7,8 +7,17 @@ from aiogram.types import Message, FSInputFile
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
 
-from app.services.ai_service import chat_with_ai_tutor, transcribe_audio_groq, text_to_speech_gtts
-from app.bot.keyboards.main_menu import get_main_reply_keyboard, get_ai_chat_keyboard
+from app.services.ai_service import (
+    chat_with_ai_tutor,
+    transcribe_audio_groq,
+    text_to_speech_gtts,
+    review_academic_writing
+)
+from app.bot.keyboards.main_menu import (
+    get_main_reply_keyboard,
+    get_ai_chat_keyboard,
+    get_academic_writing_keyboard
+)
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +25,9 @@ ai_router = Router(name="ai_router")
 
 class AITutorStates(StatesGroup):
     chatting = State()
+
+class AcademicWritingStates(StatesGroup):
+    reviewing = State()
 
 async def send_tts_voice_response(message: Message, text_to_speak: str):
     """
@@ -99,10 +111,7 @@ async def handle_exit_ai_tutor_chat(message: Message, state: FSMContext):
 
 @ai_router.message(AITutorStates.chatting, F.text | F.voice | F.audio)
 async def handle_ai_chat_unified(message: Message, state: FSMContext):
-    """
-    Unified MessageHandler for AI English Tutor (Voice, Audio, and Text).
-    Supports F.text | F.voice | F.audio with logging for Render console.
-    """
+    """Unified MessageHandler for AI English Tutor (Voice, Audio, and Text)."""
     print(f"\n[AI Tutor LOG] Received message from @{message.from_user.username} (ID: {message.from_user.id})", flush=True)
 
     # 1. Handle Voice & Audio
@@ -110,7 +119,6 @@ async def handle_ai_chat_unified(message: Message, state: FSMContext):
         file_obj = message.voice or message.audio
         print(f"[AI Tutor LOG] 🎙️ Processing Audio/Voice message (file_id: {file_obj.file_id})...", flush=True)
 
-        # Immediate student feedback
         await message.answer("مرحباً! لقد استلمت رسالتك الصوتية 🎧، جاري الاستماع والتحليل...")
 
         try:
@@ -126,14 +134,12 @@ async def handle_ai_chat_unified(message: Message, state: FSMContext):
         try:
             print(f"[AI Tutor LOG] Downloading audio file to: {temp_file_path}", flush=True)
             await message.bot.download(file=file_obj, destination=temp_file_path)
-            print(f"[AI Tutor LOG] Download completed. Size: {os.path.getsize(temp_file_path)} bytes", flush=True)
 
             print("[AI Tutor LOG] Sending to Groq Whisper for transcription...", flush=True)
             transcribed_text = await asyncio.to_thread(transcribe_audio_groq, temp_file_path)
             print(f"[AI Tutor LOG] Transcription result: '{transcribed_text}'", flush=True)
 
             if not transcribed_text or not transcribed_text.strip():
-                print("[AI Tutor LOG] Transcription was empty or silent.", flush=True)
                 await message.answer(
                     "🎙️ <b>لم يتم التعرف على صوت أو كلمات واضحة في الرسالة الصوتية.</b>\n\n"
                     "يرجى التحدث بوضوح باللغة الإنجليزية والمحاولة مرة أخرى. ✨",
@@ -145,9 +151,7 @@ async def handle_ai_chat_unified(message: Message, state: FSMContext):
             data = await state.get_data()
             history = data.get("history", [])
 
-            print("[AI Tutor LOG] Querying English Tutor response from Groq...", flush=True)
             ai_reply = await asyncio.to_thread(chat_with_ai_tutor, transcribed_text, history)
-            print(f"[AI Tutor LOG] AI response generated: '{ai_reply[:80]}...'", flush=True)
 
             history.append({"role": "user", "text": transcribed_text})
             history.append({"role": "model", "text": ai_reply})
@@ -170,7 +174,6 @@ async def handle_ai_chat_unified(message: Message, state: FSMContext):
 
             print("[AI Tutor LOG] Generating TTS voice pronunciation...", flush=True)
             await send_tts_voice_response(message, ai_reply)
-            print("[AI Tutor LOG] Voice interaction finished successfully!", flush=True)
 
         except Exception as e:
             print(f"[AI Tutor ERROR] Failed to process voice note: {e}", flush=True)
@@ -185,7 +188,6 @@ async def handle_ai_chat_unified(message: Message, state: FSMContext):
             if os.path.exists(temp_file_path):
                 try:
                     os.remove(temp_file_path)
-                    print(f"[AI Tutor LOG] Deleted temporary file {temp_file_path}.", flush=True)
                 except Exception:
                     pass
 
@@ -203,7 +205,6 @@ async def handle_ai_chat_unified(message: Message, state: FSMContext):
         history = data.get("history", [])
 
         ai_reply = await asyncio.to_thread(chat_with_ai_tutor, user_text, history)
-        print(f"[AI Tutor LOG] AI response generated: '{ai_reply[:80]}...'", flush=True)
 
         history.append({"role": "user", "text": user_text})
         history.append({"role": "model", "text": ai_reply})
@@ -216,13 +217,105 @@ async def handle_ai_chat_unified(message: Message, state: FSMContext):
             reply_markup=get_ai_chat_keyboard()
         )
 
-        print("[AI Tutor LOG] Generating TTS voice pronunciation...", flush=True)
         await send_tts_voice_response(message, ai_reply)
-        print("[AI Tutor LOG] Text interaction finished successfully!", flush=True)
+
+# =========================================================================
+# Academic Writing Reviewer (University Professor Engine)
+# =========================================================================
+
+@ai_router.message(F.text.contains("مصحح الكتابة الأكاديمية") | F.text.contains("Academic Writing"))
+async def handle_start_academic_writing(message: Message, state: FSMContext):
+    """Activates Academic Writing Reviewer mode (isolated state)."""
+    await state.set_state(AcademicWritingStates.reviewing)
+    print(f"[Academic Review LOG] User @{message.from_user.username} entered Academic Writing mode.", flush=True)
+
+    welcome_text = (
+        "🏛️ <b>مرحباً بك في قسم مصحح الكتابة الأكاديمية!</b> ✍️📜\n\n"
+        "هنا يتولى الذكاء الاصطناعي دور <b>أستاذ جامعي متخصص في اللغة الإنجليزية وآدابها</b> لتقييم وتدقيق أبحاثك ومقالاتك الأكاديمية وتحليلاتك الأدبية.\n\n"
+        "🎯 <b>معايير التقييم الصارمة:</b>\n"
+        "• <b>Academic Tone & Vocabulary:</b> استخدام المفردات الأكاديمية الرصينة.\n"
+        "• <b>Coherence & Transitions:</b> قوة أدوات الربط والتماسك الفكري بين الفقرات.\n"
+        "• <b>Grammar & Variety:</b> الدقة النحوية وتنوع التراكيب اللغوية المعقدة.\n"
+        "• <b>Literature Analysis:</b> تحليل النصوص الأدبية في الشعر والمسرح والرواية العالمية.\n\n"
+        "📝 <b>كيف تبدأ؟</b>\n"
+        "أرسل مقالك أو فقرتك الأكاديمية في رسالة أدناه، وسأقدم لك تقييماً شاملاً مع نسخة أكاديمية مصقولة واحترافية!\n\n"
+        "🚪 <i>للعودة في أي وقت، اضغط على زر</i> <b>«🔙 العودة للقائمة الرئيسية»</b>."
+    )
+    await message.answer(
+        welcome_text,
+        reply_markup=get_academic_writing_keyboard(),
+        parse_mode="HTML"
+    )
+
+@ai_router.message(AcademicWritingStates.reviewing, F.text.contains("العودة للقائمة الرئيسية") | F.text.contains("إنهاء") | F.text.in_(["/exit", "/stop", "خروج", "Exit"]))
+async def handle_exit_academic_writing(message: Message, state: FSMContext):
+    """Exits Academic Writing mode and restores main menu."""
+    print(f"[Academic Review LOG] User @{message.from_user.username} exited Academic Writing mode.", flush=True)
+    await state.clear()
+    exit_text = (
+        "✅ <b>تم الخروج من قسم مصحح الكتابة الأكاديمية بنجاح.</b>\n\n"
+        "نتمنى لك دوام التوفيق والتميز في مسيرتك العلمية والأكاديمية! 🎓🌟\n\n"
+        "اختر من القائمة أدناه للوصول إلى باقي أقسام الأكاديمية: 👇"
+    )
+    await message.answer(
+        exit_text,
+        reply_markup=get_main_reply_keyboard(),
+        parse_mode="HTML"
+    )
+
+@ai_router.message(AcademicWritingStates.reviewing, F.text)
+async def handle_process_academic_text(message: Message, state: FSMContext):
+    """Processes student academic essay through Groq's University Professor model."""
+    student_text = message.text.strip()
+    if not student_text:
+        return
+
+    print(f"[Academic Review LOG] Evaluating essay ({len(student_text)} chars) for @{message.from_user.username}...", flush=True)
+
+    await message.answer(
+        "🔍 <b>جاري قراءة وتحليل النص الأكاديمي بواسطة البروفيسور الذكي...</b>\n"
+        "<i>يتم التدقيق في الأسلوب، أدوات الربط، القواعد، وصياغة نسخة مصقولة. يرجى الانتظار ثوانٍ معدودة...</i>",
+        parse_mode="HTML"
+    )
+
+    try:
+        await message.bot.send_chat_action(chat_id=message.chat.id, action="typing")
+    except Exception:
+        pass
+
+    try:
+        review_result = await asyncio.to_thread(review_academic_writing, student_text)
+        print(f"[Academic Review LOG] Academic review generated successfully ({len(review_result)} chars).", flush=True)
+
+        header = "🎓 <b>تقرير التقييم والتدقيق الأكاديمي:</b>\n" + "═" * 32 + "\n\n"
+        full_message = header + review_result
+
+        if len(full_message) <= 4000:
+            await message.answer(
+                full_message,
+                reply_markup=get_academic_writing_keyboard()
+            )
+        else:
+            chunks = [full_message[i:i+3800] for i in range(0, len(full_message), 3800)]
+            for idx, chunk in enumerate(chunks):
+                is_last = (idx == len(chunks) - 1)
+                await message.answer(
+                    chunk,
+                    reply_markup=get_academic_writing_keyboard() if is_last else None
+                )
+
+    except Exception as e:
+        print(f"[Academic Review ERROR] Review failed: {e}", flush=True)
+        logger.error(f"[Academic Review Error] {e}", exc_info=True)
+        await message.answer(
+            "⚠️ <b>عذراً، حدث خطأ أثناء تدقيق النص الأكاديمي.</b>\n\n"
+            "قد يكون النص طويلاً جداً أو حدث تأخر مؤقت في الاتصال. يرجى تجربة إرسال النص مجدداً أو تقسيمه إلى أجزاء أصغر.",
+            reply_markup=get_academic_writing_keyboard(),
+            parse_mode="HTML"
+        )
 
 @ai_router.message(Command("ai"))
 async def handle_ai_command(message: Message):
-    """Quick one-off question helper."""
     question = message.text.replace("/ai", "", 1).strip() if message.text else ""
 
     if not question:
