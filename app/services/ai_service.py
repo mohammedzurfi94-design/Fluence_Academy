@@ -14,12 +14,26 @@ logger = logging.getLogger(__name__)
 DEFAULT_GROQ_API_KEY = "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"
 DEFAULT_GEMINI_API_KEY = "AQ.Ab8RN6LFDPHEQNAEPrx6x3PlcZFKYQl0wLs4ZJzsQ9xx0Dwo2Q"
 
-GROQ_MODELS = ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.8-27b"]
+GROQ_MODELS = ["openai/gpt-oss-120b", "llama3-70b-8192", "llama-3.3-70b-versatile", "openai/gpt-oss-20b", "qwen/qwen3.8-27b"]
 
 SYSTEM_INSTRUCTION = (
     "You are a friendly and professional English language tutor at Fluence English Academy. "
     "Your job is to chat with students in English, gently correct their grammar, spelling, "
     "or vocabulary mistakes, and encourage them to keep practicing. Always be supportive and use a professional yet warm tone."
+)
+
+ACADEMIC_WRITING_SYSTEM_INSTRUCTION = (
+    "You are an expert University Professor of English Language and Literature at Fluence English Academy. "
+    "Your task is to evaluate and proofread academic writing, essays, and literature analyses submitted by university students.\n\n"
+    "Strictly focus on:\n"
+    "1. Academic tone and formal vocabulary.\n"
+    "2. Correct usage of transition signals and coherence.\n"
+    "3. Grammatical accuracy and sentence variety.\n"
+    "4. If the text discusses literature, assume the context is World Literature (especially Poetry and Drama).\n\n"
+    "Provide your feedback in this format:\n\n"
+    "📊 Overall Score (Out of 10)\n\n"
+    "🧐 Critique & Errors (Point out specific mistakes)\n\n"
+    "✨ Polished Academic Version (Rewrite the text professionally)."
 )
 
 def chat_with_groq(api_key: str, user_message: str, history: Optional[List[Dict[str, str]]] = None) -> str:
@@ -64,10 +78,51 @@ def chat_with_groq(api_key: str, user_message: str, history: Optional[List[Dict[
 
     raise Exception(f"All Groq models failed. Last error: {last_error}")
 
+def review_academic_writing(student_text: str, api_key: Optional[str] = None) -> str:
+    """
+    Evaluates and proofreads university-level academic writing and essays using Groq.
+    """
+    key = api_key or os.getenv("GROQ_API_KEY") or getattr(settings, "GROQ_API_KEY", None) or DEFAULT_GROQ_API_KEY
+    if key:
+        key = str(key).strip().strip("'\"")
+
+    url = "https://api.groq.com/openai/v1/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {key}",
+        "Content-Type": "application/json"
+    }
+    messages = [
+        {"role": "system", "content": ACADEMIC_WRITING_SYSTEM_INSTRUCTION},
+        {"role": "user", "content": student_text}
+    ]
+
+    for model_name in GROQ_MODELS:
+        try:
+            resp = requests.post(
+                url,
+                headers=headers,
+                json={
+                    "model": model_name,
+                    "messages": messages,
+                    "temperature": 0.4,
+                    "max_tokens": 1500
+                },
+                timeout=30
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                return data["choices"][0]["message"]["content"].strip()
+            else:
+                logger.warning(f"[Academic Review {model_name} Warning] {resp.status_code}: {resp.text}")
+        except Exception as err:
+            logger.warning(f"[Academic Review Exception with {model_name}] {err}")
+            continue
+
+    raise Exception("All models failed to review academic writing.")
+
 def transcribe_audio_groq(file_path: str, api_key: Optional[str] = None) -> str:
     """
     Transcribes student English voice notes using Groq Whisper models (whisper-large-v3).
-    Supports both official groq SDK and direct HTTP fallback.
     """
     key = api_key or os.getenv("GROQ_API_KEY") or getattr(settings, "GROQ_API_KEY", None) or DEFAULT_GROQ_API_KEY
     if key:
@@ -112,7 +167,6 @@ def transcribe_audio_groq(file_path: str, api_key: Optional[str] = None) -> str:
     raise Exception("Could not transcribe audio using Groq Whisper.")
 
 def clean_text_for_tts(text: str) -> str:
-    """Cleans markdown, html tags, and excessive formatting for smooth natural speech."""
     clean = re.sub(r"<[^>]+>", "", text)
     clean = re.sub(r"[*_`#~]", "", clean)
     clean = re.sub(r"[^\w\s.,!?'\"-]", " ", clean)
@@ -120,7 +174,6 @@ def clean_text_for_tts(text: str) -> str:
     return clean
 
 def text_to_speech_gtts(text: str, output_path: str, lang: str = "en", tld: str = "co.uk") -> str:
-    """Converts English tutor reply to speech using gTTS with British Accent ('co.uk')."""
     from gtts import gTTS
     cleaned_text = clean_text_for_tts(text)
     if not cleaned_text:
@@ -131,7 +184,6 @@ def text_to_speech_gtts(text: str, output_path: str, lang: str = "en", tld: str 
     return output_path
 
 def get_configured_model():
-    """Configures and returns the gemini model with System Instruction."""
     import google.generativeai as genai
     
     api_key = os.getenv("GEMINI_API_KEY") or getattr(settings, "GEMINI_API_KEY", None) or DEFAULT_GEMINI_API_KEY
@@ -151,7 +203,6 @@ def get_configured_model():
     return genai.GenerativeModel(model_name="gemini-flash-latest", system_instruction=SYSTEM_INSTRUCTION)
 
 def chat_with_ai_tutor(user_message: str, history: Optional[List[Dict[str, str]]] = None) -> str:
-    """Sends message to AI Tutor (supports Groq & Gemini seamlessly)."""
     groq_key = os.getenv("GROQ_API_KEY") or getattr(settings, "GROQ_API_KEY", None) or DEFAULT_GROQ_API_KEY
     gemini_key = os.getenv("GEMINI_API_KEY") or getattr(settings, "GEMINI_API_KEY", None)
 
