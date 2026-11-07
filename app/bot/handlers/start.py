@@ -1,6 +1,7 @@
+import html
 from aiogram import Router, F
 from aiogram.filters import CommandStart
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from sqlalchemy import select
 from datetime import datetime
 
@@ -11,6 +12,62 @@ from app.core.config import settings
 from app.services.channel_service import check_user_channel_membership
 
 start_router = Router(name="start_router")
+
+def get_start_hub_inline_keyboard() -> InlineKeyboardMarkup:
+    """Returns interactive hub buttons with direct clickable divisions for the /start welcome card."""
+    keyboard = [
+        [
+            InlineKeyboardButton(text="📚 دليل وتفاصيل الكورسات | Courses", callback_data="back_to_courses"),
+            InlineKeyboardButton(text="📝 اختبار تحديد المستوى المتجدد", callback_data="start_placement_test")
+        ],
+        [
+            InlineKeyboardButton(text="💡 معلومة اليوم واختبارها (🎙️)", callback_data="open_daily_info"),
+            InlineKeyboardButton(text="🎯 تحدي اليوم الذكي (AI Challenge)", callback_data="open_daily_challenge")
+        ],
+        [
+            InlineKeyboardButton(text="🤖 المساعد اللغوي (AI Tutor)", callback_data="start_ai_tutor_chat"),
+            InlineKeyboardButton(text="✍️ مصحح الكتابة الأكاديمية", callback_data="start_academic_reviewer_chat")
+        ],
+        [
+            InlineKeyboardButton(text="📁 المكتبة التعليمية والملفات", callback_data="open_library"),
+            InlineKeyboardButton(text="💬 الدعم والتواصل مع الإدارة", callback_data="open_support_dialog")
+        ],
+        [
+            InlineKeyboardButton(text="✨ نبذة ورؤية الأكاديمية | About", callback_data="open_about_fluence")
+        ]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+def get_welcome_card_text(student_name: str) -> str:
+    """Generates the rich, prestigious academy welcome and divisions overview card."""
+    clean_name = html.escape(student_name or "Student")
+    return (
+        f"🌟 <b>مرحباً بك في أكاديمية Fluence للغة الإنجليزية يا {clean_name}!</b> 🎓\n"
+        f"المشرف العام: <b>Lect. Mohammed Hussein</b> (مدرس جامعي متخصص في اللغة الإنجليزية والأدب العالمي).\n\n"
+        f"━━━━━━━━━━━━━━━━━━━\n"
+        f"🏛️ <b>الأقسام والخدمات الأكاديمية المتاحة في المنصة:</b>\n\n"
+        f"📚 <b>1. دليل الكورسات والدورات الأكاديمية المعتمدة:</b>\n"
+        f"• 🗣️ <b>كورسات اللغة العامة (General English):</b> تشمل المستويات (A1 المبتدئ، A2 الأساسي، B1 المتوسط، B2 فوق المتوسط) مع مناهج تفاعلية حديثة.\n"
+        f"• 🏛️ <b>كورسات اللغة الأكاديمية:</b> مخصصة للدراسات العليا والبحث العلمي وصياغة الأطروحات.\n"
+        f"• 🎯 <b>الكورس المكثف للامتحان التنافسي:</b> للمتقدمين للماجستير والدكتوراه.\n"
+        f"• 🇮🇶 <b>كورس الاختبار الوطني الموحد (INELT):</b> تدريب شامل للنجاح في الاختبار الوطني.\n\n"
+        f"📝 <b>2. اختبار تحديد المستوى الذكي (متجدد آلياً):</b>\n"
+        f"• 20 سؤالاً تشخيصياً دقيقاً متدرج الصعوبة من A1 إلى C2.\n"
+        f"• 🔄 <b>نماذج متجددة:</b> لا تتكرر نفس الأسئلة إذا أعدت الاختبار، لضمان قياس مستواك الحقيقي.\n"
+        f"• حفظ النتيجة الرسمية تلقائياً في قاعدة بيانات الأكاديمية على Notion.\n\n"
+        f"💡 <b>3. معلومة اليوم واختبارها التفاعلي (🎙️):</b>\n"
+        f"• محتوى تعليمي يومي يركز على القواعد، الأفعال المركبة (Phrasal Verbs)، والمصطلحات الأكاديمية.\n"
+        f"• بصمة صوتية مرفقة باللكنة البريطانية المعتمدة (British Accent).\n"
+        f"• زر اختبار فهم فوري لقياس مدى استيعابك للمعلومة.\n\n"
+        f"🎯 <b>4. تحدي اليوم الذكي (Daily AI Challenge):</b>\n"
+        f"• أسئلة لغوية تفاعلية فورية ومباشرة مدعومة بذكاء Groq الفائق.\n\n"
+        f"🤖 <b>5. المساعد اللغوي ومصحح الكتابة (AI Tutor):</b>\n"
+        f"• محادثة وممارسة نصية وصوتية (Voice Notes) مع رد صوتي بريطاني فوري.\n"
+        f"• تدقيق المقالات والأبحاث وتحليل النصوص الأدبية بواسطة بروفيسور أكاديمي ذكي.\n\n"
+        f"📁 <b>6. المكتبة الرقمية والملفات:</b> ملازم، أدلة بحوث التخرج، ودليل مناقشة الأطروحة.\n\n"
+        f"━━━━━━━━━━━━━━━━━━━\n"
+        f"👇 <b>اختر من الأزرار التفاعلية أدناه لبدء رحلتك التعليمية فوراً:</b>"
+    )
 
 @start_router.message(CommandStart())
 async def handle_start(message: Message):
@@ -75,7 +132,6 @@ async def handle_start(message: Message):
         except Exception as e:
             await session.rollback()
             print(f"[Registration Notice] Handled concurrent registration for {telegram_id}: {e}")
-            # Re-fetch user safely
             try:
                 query = select(User).where(User.telegram_id == telegram_id)
                 result = await session.execute(query)
@@ -83,26 +139,92 @@ async def handle_start(message: Message):
             except Exception:
                 pass
 
-    welcome_text = (
-        f"مرحباً بك في <b>Fluence Academy</b>! 🎓\n"
-        f"معك الأستاذ محمد حسين.\n"
-        f"رحلتك نحو إتقان اللغة الإنجليزية تبدأ من هنا.\n\n"
-        f"لقد صممنا هذه المنصة لتكون بيئتك الأكاديمية المتكاملة. يمكنك من خلال القائمة أدناه:\n"
-        f"📚 تصفح الكورسات والدروس التفاعلية\n"
-        f"📄 تحميل الملخصات والمواد الدراسية\n"
-        f"📝 أداء الاختبارات وتقييم مستواك بدقة\n"
-        f"🏆 متابعة تقدمك والحصول على شهادات الإتمام\n\n"
-        f"اختر القسم الذي تود البدء به من القائمة بالأسفل لننطلق معاً! 👇"
-    )
+    welcome_card = get_welcome_card_text(full_name)
 
     try:
+        # First send quick-access ReplyKeyboardMarkup to keep bottom menu visible on all devices
         await message.answer(
-            welcome_text,
+            "🎓 <b>أهلاً بك في أكاديمية Fluence للغة الإنجليزية!</b>\n"
+            "تم تفعيل قائمة الأوامر السريعة بالأسفل بنجاح ⬇️",
             reply_markup=get_main_reply_keyboard(),
+            parse_mode="HTML"
+        )
+        # Then present the full prestigious divisions dashboard with interactive inline buttons
+        await message.answer(
+            welcome_card,
+            reply_markup=get_start_hub_inline_keyboard(),
             parse_mode="HTML"
         )
     except Exception as e:
         print(f"[Send Message Error] {e}")
+        await message.answer(welcome_card, reply_markup=get_start_hub_inline_keyboard())
+
+@start_router.callback_query(F.data == "back_to_main_menu")
+async def handle_back_to_main_menu_callback(callback: CallbackQuery):
+    """Edits message back to the main academy divisions card."""
+    student_name = (callback.from_user.full_name or "Student") if callback.from_user else "Student"
+    card_text = get_welcome_card_text(student_name)
+    try:
+        await callback.message.edit_text(card_text, reply_markup=get_start_hub_inline_keyboard(), parse_mode="HTML")
+    except Exception:
+        await callback.message.answer(card_text, reply_markup=get_start_hub_inline_keyboard(), parse_mode="HTML")
+    await callback.answer()
+
+@start_router.callback_query(F.data == "open_support_dialog")
+async def handle_open_support_dialog_callback(callback: CallbackQuery):
+    """Displays contact links with administration and official teacher support via inline query."""
+    help_text = (
+        "💬 <b>الدعم الأكاديمي والتواصل مع الإدارة | Help & Support</b>\n\n"
+        "فريق أكاديمية Fluence هنا لمساعدتك في أي استفسار أو توجيه تعليمي تحتاجه:\n\n"
+        "👨‍🏫 <b>التواصل المباشر مع المشرف العام (الأستاذ محمد حسين):</b>\n"
+        "👉 @Alzurfi1\n\n"
+        "📢 <b>القناة الرسمية للأكاديمية:</b>\n"
+        "👉 @FluenceEnglish\n\n"
+        "📌 <b>الخدمات المتاحة عبر التواصل المباشر:</b>\n"
+        "• التسجيل وحجز المقاعد في الدورات التخصصية (التنافسي / INELT).\n"
+        "• طلب استشارة أكاديمية لتحديد المستوى والمسار المناسب.\n"
+        "• الإبلاغ عن أي استفسار تقني بخصوص البوت أو الاختبارات.\n\n"
+        "يسعدنا تواصلكم دائماً ونتمنى لكم التوفيق والتميز! 🌟"
+    )
+    keyboard = [
+        [InlineKeyboardButton(text="📲 تواصل مع الإدارة | Contact Admin", url="https://t.me/Alzurfi1")],
+        [InlineKeyboardButton(text="📢 القناة الرسمية | Official Channel", url="https://t.me/FluenceEnglish")],
+        [InlineKeyboardButton(text="🔙 العودة للواجهة الرئيسية | Main Menu", callback_data="back_to_main_menu")]
+    ]
+    try:
+        await callback.message.edit_text(help_text, reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard), parse_mode="HTML")
+    except Exception:
+        await callback.message.answer(help_text, reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard), parse_mode="HTML")
+    await callback.answer()
+
+@start_router.callback_query(F.data == "open_about_fluence")
+async def handle_open_about_fluence_callback(callback: CallbackQuery):
+    """Displays prestigious overview about Fluence Academy with founder credentials via inline query."""
+    about_text = (
+        "🌟 <b>مرحباً بك في Fluence English Academy</b> 🌟\n\n"
+        "بيئتك التعليمية المتكاملة التي أسسها ويشرف عليها الأستاذ الجامعي <b>Lect. Mohammed Hussein</b>، "
+        "المتخصص في اللغة الإنجليزية والأدب العالمي.\n\n"
+        "🎯 <b>رؤيتنا والفئة المستهدفة:</b>\n"
+        "نهدف إلى تقديم تجربة تعليمية رصينة لتطوير المهارات اللغوية العامة باستخدام مناهج تفاعلية مُعدة خصيصاً "
+        "وتخضع للتطوير والتحديث المستمر.\n\n"
+        "<b>صُممت برامجنا لتلبي احتياجات:</b>\n"
+        "• طلبة الجامعات في مختلف التخصصات.\n"
+        "• طلبة وخريجي أقسام اللغة الإنجليزية.\n"
+        "• كل من يطمح لتطوير لغته الإنجليزية بشكل عام.\n"
+        "• الطلبة الراغبين بالتقديم للدراسات العليا، من خلال كورسات متخصصة في اللغة الأكاديمية، الكتابة البحثية، والتحضير للاختبارات التنافسية والوطنية.\n\n"
+        "🌐 <b>مجتمعنا:</b>\n"
+        "رحلتك نحو إتقان الإنجليزية تبدأ من هنا، عبر بيئة تفاعلية تدعمك خطوة بخطوة."
+    )
+    keyboard = [
+        [InlineKeyboardButton(text="📢 زيارة القناة الرسمية | Visit Channel", url="https://t.me/FluenceEnglish")],
+        [InlineKeyboardButton(text="📚 استكشاف الدورات | Explore Courses", callback_data="back_to_courses")],
+        [InlineKeyboardButton(text="🔙 العودة للواجهة الرئيسية | Main Menu", callback_data="back_to_main_menu")]
+    ]
+    try:
+        await callback.message.edit_text(about_text, reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard), parse_mode="HTML")
+    except Exception:
+        await callback.message.answer(about_text, reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard), parse_mode="HTML")
+    await callback.answer()
 
 @start_router.message(F.text.contains("عن الأكاديمية") | F.text.contains("About Fluence"))
 async def handle_about_fluence(message: Message):
@@ -136,7 +258,8 @@ async def handle_about_fluence(message: Message):
     )
     keyboard = [
         [InlineKeyboardButton(text="📢 زيارة القناة الرسمية | Visit Channel", url="https://t.me/FluenceEnglish")],
-        [InlineKeyboardButton(text="📚 استكشاف الدورات | Explore Courses", callback_data="back_to_courses")]
+        [InlineKeyboardButton(text="📚 استكشاف الدورات | Explore Courses", callback_data="back_to_courses")],
+        [InlineKeyboardButton(text="🔙 العودة للواجهة الرئيسية | Main Menu", callback_data="back_to_main_menu")]
     ]
     await message.answer(about_text, reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard), parse_mode="HTML")
 
@@ -144,9 +267,9 @@ async def handle_about_fluence(message: Message):
 async def handle_help_support(message: Message):
     """Provides contact links with administration and official teacher support."""
     help_text = (
-        "💬 <b>الدعم الفني والتواصل مع الإدارة | Help & Support</b>\n\n"
+        "💬 <b>الدعم الأكاديمي والتواصل مع الإدارة | Help & Support</b>\n\n"
         "فريق أكاديمية Fluence هنا لمساعدتك في أي استفسار أو توجيه تعليمي تحتاجه:\n\n"
-        "👨‍🏫 <b>التواصل المباشر مع الأستاذ محمد حسين:</b>\n"
+        "👨‍🏫 <b>التواصل المباشر مع المشرف العام (الأستاذ محمد حسين):</b>\n"
         "👉 @Alzurfi1\n\n"
         "📢 <b>القناة الرسمية للأكاديمية:</b>\n"
         "👉 @FluenceEnglish\n\n"
@@ -158,7 +281,8 @@ async def handle_help_support(message: Message):
     )
     keyboard = [
         [InlineKeyboardButton(text="📲 تواصل مع الإدارة | Contact Admin", url="https://t.me/Alzurfi1")],
-        [InlineKeyboardButton(text="📢 القناة الرسمية | Official Channel", url="https://t.me/FluenceEnglish")]
+        [InlineKeyboardButton(text="📢 القناة الرسمية | Official Channel", url="https://t.me/FluenceEnglish")],
+        [InlineKeyboardButton(text="🔙 العودة للواجهة الرئيسية | Main Menu", callback_data="back_to_main_menu")]
     ]
     await message.answer(help_text, reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard), parse_mode="HTML")
 
@@ -242,17 +366,7 @@ async def handle_check_channel_callback(callback: CallbackQuery):
 
         await callback.answer("🎉 تم التحقق من اشتراكك بنجاح! أهلاً بك معنا.", show_alert=True)
 
-        welcome_text = (
-            f"مرحباً بك في <b>Fluence Academy</b>! 🎓\n"
-            f"معك الأستاذ محمد حسين.\n"
-            f"رحلتك نحو إتقان اللغة الإنجليزية تبدأ من هنا.\n\n"
-            f"لقد صممنا هذه المنصة لتكون بيئتك الأكاديمية المتكاملة. يمكنك من خلال القائمة أدناه:\n"
-            f"📚 تصفح الكورسات والدروس التفاعلية\n"
-            f"📄 تحميل الملخصات والمواد الدراسية\n"
-            f"📝 أداء الاختبارات وتقييم مستواك بدقة\n"
-            f"🏆 متابعة تقدمك والحصول على شهادات الإتمام\n\n"
-            f"اختر القسم الذي تود البدء به من القائمة بالأسفل لننطلق معاً! 👇"
-        )
+        welcome_card = get_welcome_card_text(tg_user.full_name or "Student")
 
         try:
             if callback.message:
@@ -262,8 +376,13 @@ async def handle_check_channel_callback(callback: CallbackQuery):
 
         if callback.message:
             await callback.message.answer(
-                welcome_text,
+                "🎓 <b>تم التحقق بنجاح! تم تفعيل قائمة الأوامر بالأسفل بنجاح ⬇️</b>",
                 reply_markup=get_main_reply_keyboard(),
+                parse_mode="HTML"
+            )
+            await callback.message.answer(
+                welcome_card,
+                reply_markup=get_start_hub_inline_keyboard(),
                 parse_mode="HTML"
             )
     else:
