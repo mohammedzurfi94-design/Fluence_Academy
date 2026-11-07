@@ -1,12 +1,16 @@
+import os
 import asyncio
+import logging
 from aiogram import Router, F
 from aiogram.filters import Command
 from aiogram.types import Message
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
 
-from app.services.ai_service import chat_with_ai_tutor
+from app.services.ai_service import chat_with_ai_tutor, transcribe_audio_groq
 from app.bot.keyboards.main_menu import get_main_reply_keyboard, get_ai_chat_keyboard
+
+logger = logging.getLogger(__name__)
 
 ai_router = Router(name="ai_router")
 
@@ -21,9 +25,10 @@ async def handle_start_ai_tutor_chat(message: Message, state: FSMContext):
 
     welcome_text = (
         "🤖 <b>مرحباً بك في خدمة المساعد اللغوي الذكي (AI English Tutor)!</b> 🎓\n\n"
-        "أنا هنا لمساعدتك على ممارسة وتطوير لغتك الإنجليزية، وتصحيح أي أخطاء قواعدية أو إملائية بلطف ودقة.\n\n"
+        "أنا هنا لمساعدتك على ممارسة وتطوير لغتك الإنجليزية، وتصحيح أي أخطاء قواعدية أو إملائية أو لفظية بلطف ودقة.\n\n"
         "💬 <b>كيف تبدأ؟</b>\n"
-        "اكتب أي رسالة أو جملة باللغة الإنجليزية في المحادثة أدناه، وسأقوم بالرد عليك ومساعدتك فوراً!\n\n"
+        "• اكتب أي رسالة أو جملة باللغة الإنجليزية ✍️\n"
+        "• أو أرسل <b>رسالة صوتية (Voice Note) 🎙️</b> وسأستمع لنطقك وأساعدك فوراً!\n\n"
         "🚪 <i>للخروج والعودة للقائمة الرئيسية في أي وقت، اضغط على زر</i> <b>«🔙 إنهاء المحادثة»</b>."
     )
     await message.answer(
@@ -47,27 +52,104 @@ async def handle_exit_ai_tutor_chat(message: Message, state: FSMContext):
         parse_mode="HTML"
     )
 
-@ai_router.message(AITutorStates.chatting, F.text)
-async def handle_ai_chat_message(message: Message, state: FSMContext):
-    """Processes student messages with Gemini 1.5 Flash in conversation mode."""
-    user_text = message.text.strip()
-    if not user_text:
-        return
-
-    # Visual typing indicator
+@ai_router.message(AITutorStates.chatting, F.voice | F.audio)
+async def handle_ai_voice_message(message: Message, state: FSMContext):
+    """
+    Downloads voice note or audio, transcribes it via Groq Whisper (whisper-large-v3),
+    processes it with AI Tutor, and responds with transcribed text + feedback.
+    Deletes the temporary file afterwards.
+    """
     try:
         await message.bot.send_chat_action(chat_id=message.chat.id, action="typing")
     except Exception:
         pass
 
-    # Retrieve conversational history
+    file_obj = message.voice or message.audio
+    if not file_obj:
+        return
+
+    storage_dir = "storage"
+    os.makedirs(storage_dir, exist_ok=True)
+    ext = "ogg" if message.voice else (file_obj.file_name.split(".")[-1] if file_obj.file_name and "." in file_obj.file_name else "ogg")
+    temp_file_path = os.path.join(storage_dir, f"temp_voice_{message.from_user.id}_{message.message_id}.{ext}")
+
+    try:
+        # 1. Download voice file from Telegram
+        await message.bot.download(file=file_obj, destination=temp_file_path)
+
+        # 2. Transcribe audio with Groq Whisper in background thread
+        transcribed_text = await asyncio.to_thread(transcribe_audio_groq, temp_file_path)
+
+        if not transcribed_text or not transcribed_text.strip():
+            await message.answer(
+                "🎙️ <b>لم يتم التعرف على صوت أو كلمات واضحة في الرسالة الصوتية.</b>\n\n"
+                "يرجى التحدث بوضوح باللغة الإنجليزية والمحاولة مرة أخرى. ✨",
+                reply_markup=get_ai_chat_keyboard(),
+                parse_mode="HTML"
+            )
+            return
+
+        # 3. Retrieve conversational history
+        data = await state.get_data()
+        history = data.get("history", [])
+
+        # 4. Generate AI tutor feedback in background thread
+        ai_reply = await asyncio.to_thread(chat_with_ai_tutor, transcribed_text, history)
+
+        # 5. Append to history
+        history.append({"role": "user", "text": transcribed_text})
+        history.append({"role": "model", "text": ai_reply})
+        if len(history) > 20:
+            history = history[-20:]
+        await state.update_data(history=history)
+
+        # 6. Format dual-section response as required
+        formatted_response = (
+            f"🗣️ <b>ما سمعته منك:</b>\n"
+            f"<i>«{transcribed_text}»</i>\n\n"
+            f"🤖 <b>رد المساعد اللغوي:</b>\n"
+            f"{ai_reply}"
+        )
+
+        await message.answer(
+            formatted_response,
+            reply_markup=get_ai_chat_keyboard(),
+            parse_mode="HTML"
+        )
+
+    except Exception as e:
+        logger.error(f"[Voice Handler Error] {e}", exc_info=True)
+        await message.answer(
+            "⚠️ <b>عذراً، حدث خطأ أثناء معالجة الرسالة الصوتية.</b>\n\n"
+            "يرجى التأكد من وضوح التسجيل أو إرسال سؤالك كنص بدلاً من ذلك.",
+            reply_markup=get_ai_chat_keyboard(),
+            parse_mode="HTML"
+        )
+    finally:
+        # Guarantee cleanup of temporary audio file
+        if os.path.exists(temp_file_path):
+            try:
+                os.remove(temp_file_path)
+            except Exception:
+                pass
+
+@ai_router.message(AITutorStates.chatting, F.text)
+async def handle_ai_chat_message(message: Message, state: FSMContext):
+    """Processes student messages with AI Tutor in conversation mode."""
+    user_text = message.text.strip()
+    if not user_text:
+        return
+
+    try:
+        await message.bot.send_chat_action(chat_id=message.chat.id, action="typing")
+    except Exception:
+        pass
+
     data = await state.get_data()
     history = data.get("history", [])
 
-    # Run in thread pool to prevent blocking the async event loop
     ai_reply = await asyncio.to_thread(chat_with_ai_tutor, user_text, history)
 
-    # Append to history and keep last 20 messages
     history.append({"role": "user", "text": user_text})
     history.append({"role": "model", "text": ai_reply})
     if len(history) > 20:
