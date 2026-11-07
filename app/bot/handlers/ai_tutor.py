@@ -1,6 +1,8 @@
 import os
 import asyncio
 import logging
+import html
+import re
 from aiogram import Router, F
 from aiogram.filters import Command
 from aiogram.types import Message, FSInputFile
@@ -29,11 +31,21 @@ class AITutorStates(StatesGroup):
 class AcademicWritingStates(StatesGroup):
     reviewing = State()
 
+async def send_safe_message(message: Message, text: str, reply_markup=None):
+    """
+    Safely sends text message to Telegram:
+    Tries HTML mode first. If Telegram entity parser fails, falls back to plain text mode.
+    Guarantees 100% delivery without crashing on entity parse errors.
+    """
+    try:
+        await message.answer(text, reply_markup=reply_markup, parse_mode="HTML")
+    except Exception as parse_err:
+        print(f"[Telegram Send Notice] HTML parsing failed ({parse_err}), falling back to plain text.", flush=True)
+        plain_text = re.sub(r"<[^>]+>", "", text)
+        await message.answer(plain_text, reply_markup=reply_markup, parse_mode=None)
+
 async def send_tts_voice_response(message: Message, text_to_speak: str):
-    """
-    Converts English tutor response into speech using gTTS (British Accent),
-    sends it as a voice note to the student, and safely removes the temp file.
-    """
+    """Converts English tutor response into speech using gTTS (British Accent)."""
     storage_dir = "storage"
     os.makedirs(storage_dir, exist_ok=True)
     temp_tts_path = os.path.join(storage_dir, f"bot_reply_{message.from_user.id}_{message.message_id}.mp3")
@@ -134,6 +146,7 @@ async def handle_ai_chat_unified(message: Message, state: FSMContext):
         try:
             print(f"[AI Tutor LOG] Downloading audio file to: {temp_file_path}", flush=True)
             await message.bot.download(file=file_obj, destination=temp_file_path)
+            print(f"[AI Tutor LOG] Download completed. Size: {os.path.getsize(temp_file_path)} bytes", flush=True)
 
             print("[AI Tutor LOG] Sending to Groq Whisper for transcription...", flush=True)
             transcribed_text = await asyncio.to_thread(transcribe_audio_groq, temp_file_path)
@@ -159,17 +172,19 @@ async def handle_ai_chat_unified(message: Message, state: FSMContext):
                 history = history[-20:]
             await state.update_data(history=history)
 
+            safe_transcribed = html.escape(transcribed_text)
+            safe_ai_reply = html.escape(ai_reply)
             formatted_response = (
                 f"🗣️ <b>ما سمعته منك:</b>\n"
-                f"<i>«{transcribed_text}»</i>\n\n"
+                f"<i>«{safe_transcribed}»</i>\n\n"
                 f"🤖 <b>رد المساعد اللغوي:</b>\n"
-                f"{ai_reply}"
+                f"{safe_ai_reply}"
             )
 
-            await message.answer(
+            await send_safe_message(
+                message,
                 formatted_response,
-                reply_markup=get_ai_chat_keyboard(),
-                parse_mode="HTML"
+                reply_markup=get_ai_chat_keyboard()
             )
 
             print("[AI Tutor LOG] Generating TTS voice pronunciation...", flush=True)
@@ -212,8 +227,10 @@ async def handle_ai_chat_unified(message: Message, state: FSMContext):
             history = history[-20:]
         await state.update_data(history=history)
 
-        await message.answer(
-            ai_reply,
+        safe_reply = html.escape(ai_reply)
+        await send_safe_message(
+            message,
+            safe_reply,
             reply_markup=get_ai_chat_keyboard()
         )
 
@@ -288,10 +305,13 @@ async def handle_process_academic_text(message: Message, state: FSMContext):
         print(f"[Academic Review LOG] Academic review generated successfully ({len(review_result)} chars).", flush=True)
 
         header = "🎓 <b>تقرير التقييم والتدقيق الأكاديمي:</b>\n" + "═" * 32 + "\n\n"
-        full_message = header + review_result
+        safe_review = html.escape(review_result)
+        full_message = header + safe_review
 
-        if len(full_message) <= 4000:
-            await message.answer(
+        # Safely split if message exceeds Telegram limit
+        if len(full_message) <= 3900:
+            await send_safe_message(
+                message,
                 full_message,
                 reply_markup=get_academic_writing_keyboard()
             )
@@ -299,7 +319,8 @@ async def handle_process_academic_text(message: Message, state: FSMContext):
             chunks = [full_message[i:i+3800] for i in range(0, len(full_message), 3800)]
             for idx, chunk in enumerate(chunks):
                 is_last = (idx == len(chunks) - 1)
-                await message.answer(
+                await send_safe_message(
+                    message,
                     chunk,
                     reply_markup=get_academic_writing_keyboard() if is_last else None
                 )
@@ -309,7 +330,7 @@ async def handle_process_academic_text(message: Message, state: FSMContext):
         logger.error(f"[Academic Review Error] {e}", exc_info=True)
         await message.answer(
             "⚠️ <b>عذراً، حدث خطأ أثناء تدقيق النص الأكاديمي.</b>\n\n"
-            "قد يكون النص طويلاً جداً أو حدث تأخر مؤقت في الاتصال. يرجى تجربة إرسال النص مجدداً أو تقسيمه إلى أجزاء أصغر.",
+            "يرجى تجربة إرسال النص مجدداً أو تقسيمه إلى أجزاء أصغر.",
             reply_markup=get_academic_writing_keyboard(),
             parse_mode="HTML"
         )
