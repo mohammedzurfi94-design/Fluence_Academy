@@ -13,7 +13,7 @@ from app.database.connection import AsyncSessionLocal
 from app.database.models import User, Quiz, QuizQuestion, QuizAnswer, QuizAttempt, StudentProgress
 from app.core.config import settings
 
-# 1. Initialize quizzes_router immediately at the top level
+# 1. تهيئة راوتر الاختبارات في أعلى الملف
 quizzes_router = Router(name="quizzes_router")
 
 try:
@@ -31,7 +31,9 @@ except Exception:
         async def send_daily_lesson_to_user(bot, chat_id, lesson, send_voice=True):
             pass
 
-# --- محرك توليد الشهادات الإلكترونية الرسمية المعتمدة (100% Pure Python & Self-Contained) ---
+# ---------------------------------------------------------------------------
+# محرك إنشاء الشهادات الإلكترونية الرسمية المعتمدة (100% Pure Python & Self-Contained)
+# ---------------------------------------------------------------------------
 def create_certificate_pdf(
     student_name: str,
     score: int,
@@ -68,35 +70,28 @@ def create_certificate_pdf(
                 pass
 
     stream_ops = []
-    # الخلفية البيضاء
     stream_ops.append('1 1 1 rg 0 0 842 595 re f')
-    # الإطارات الملكية (كحلي وذهبي)
     stream_ops.append('0.06 0.13 0.28 RG 6 w 25 25 792 545 re S')
     stream_ops.append('0.79 0.65 0.27 RG 2 w 35 35 772 525 re S')
     stream_ops.append('0.06 0.13 0.28 RG 0.8 w 41 41 760 513 re S')
     stream_ops.append('0.79 0.65 0.27 rg 33 33 12 12 re f 797 33 12 12 re f 33 550 12 12 re f 797 550 12 12 re f')
 
-    # الشعار الرسمي أعلى الشهادة
     if logo_bytes:
         stream_ops.append('q 64 0 0 64 389 488 cm /Im1 Do Q')
 
-    # ترويسة الأكاديمية
     stream_ops.append('BT /F2 18 Tf 0.06 0.13 0.28 rg 290 460 Td (FLUENCE ENGLISH ACADEMY) Tj ET')
     stream_ops.append('BT /F4 10 Tf 0.79 0.65 0.27 rg 305 444 Td (ACCREDITED LANGUAGE & ACADEMIC PLATFORM) Tj ET')
     stream_ops.append('BT /F3 26 Tf 0.08 0.16 0.35 rg 215 395 Td (CERTIFICATE OF PROFICIENCY) Tj ET')
     stream_ops.append('BT /F4 11 Tf 0.45 0.50 0.58 rg 270 375 Td (COMMON EUROPEAN FRAMEWORK OF REFERENCE - CEFR) Tj ET')
     stream_ops.append('BT /F1 12 Tf 0.35 0.38 0.44 rg 355 335 Td (This is to certify that) Tj ET')
 
-    # اسم الطالب المسجل
     name_x = max(100, int(421 - (len(clean_name) * 11 / 2)))
     stream_ops.append(f'BT /F2 22 Tf 0.08 0.16 0.35 rg {name_x} 300 Td ({clean_name}) Tj ET')
     stream_ops.append('0.79 0.65 0.27 RG 1.5 w 250 292 m 592 292 l S')
 
-    # البيان الأكاديمي
     stream_ops.append('BT /F1 11.5 Tf 0.25 0.28 0.34 rg 170 262 Td (has successfully completed the comprehensive diagnostic English placement assessment) Tj ET')
     stream_ops.append('BT /F1 11.5 Tf 0.25 0.28 0.34 rg 210 244 Td (demonstrating proven academic competence and linguistic proficiency evaluated at:) Tj ET')
 
-    # وسام المستوى المعتمد
     stream_ops.append('0.06 0.13 0.28 rg 271 185 300 42 re f')
     stream_ops.append('0.79 0.65 0.27 RG 2 w 271 185 300 42 re S')
     badge_text = f'CEFR LEVEL: {clean_level}'
@@ -107,17 +102,14 @@ def create_certificate_pdf(
     score_x = int(421 - (len(score_text) * 6.5 / 2))
     stream_ops.append(f'BT /F2 10.5 Tf 0.08 0.16 0.35 rg {score_x} 165 Td ({score_text}) Tj ET')
 
-    # بيانات التوثيق والتحقق
     stream_ops.append('0.79 0.65 0.27 RG 1 w 70 148 m 260 148 l S')
     stream_ops.append(f'BT /F2 9.5 Tf 0.15 0.18 0.24 rg 70 133 Td (Credential ID: {clean_id}) Tj ET')
     stream_ops.append(f'BT /F1 9 Tf 0.30 0.35 0.42 rg 70 119 Td (Issue Date: {clean_date}) Tj ET')
     stream_ops.append('BT /F4 8 Tf 0.45 0.50 0.58 rg 70 105 Td (Verified in Fluence Academy Notion Registry) Tj ET')
 
-    # ختم الأكاديمية بالأسفل
     if logo_bytes:
         stream_ops.append('q 60 0 0 60 391 80 cm /Im1 Do Q')
 
-    # توقيع الأستاذ المشرف العام
     stream_ops.append('0.79 0.65 0.27 RG 1 w 580 148 m 770 148 l S')
     stream_ops.append('BT /F2 9.5 Tf 0.15 0.18 0.24 rg 580 133 Td (Lect. Mohammed Hussein) Tj ET')
     stream_ops.append('BT /F1 8.5 Tf 0.35 0.38 0.44 rg 580 119 Td (Director & General Academic Supervisor) Tj ET')
@@ -173,6 +165,9 @@ def create_certificate_pdf(
 
     return output_path
 
+# ---------------------------------------------------------------------------
+# دالة الحفظ التلقائي في قاعدة بيانات Notion
+# ---------------------------------------------------------------------------
 def save_to_notion(first_name, username, score, level):
     url = "https://api.notion.com/v1/pages"
     token = os.getenv("NOTION_API_TOKEN") or getattr(settings, "NOTION_API_TOKEN", None) or "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"
@@ -211,6 +206,9 @@ def save_to_notion(first_name, username, score, level):
     except Exception as e:
         print(f"Failed to connect to Notion: {e}")
 
+# ---------------------------------------------------------------------------
+# اختبارات الدروس العادية (Lesson Quizzes)
+# ---------------------------------------------------------------------------
 @quizzes_router.callback_query(F.data.startswith("start_quiz_"))
 async def handle_start_quiz(callback: CallbackQuery):
     lesson_id = int(callback.data.split("_")[-1])
@@ -267,7 +265,7 @@ async def handle_start_quiz(callback: CallbackQuery):
         await callback.answer()
 
 @quizzes_router.callback_query(F.data.startswith("ans_"))
-async def handle_quiz_answer(callback: CallbackQuery):
+async def handle_answer_selected(callback: CallbackQuery):
     parts = callback.data.split("_")
     quiz_id = int(parts[1])
     current_q_id = int(parts[2])
@@ -351,196 +349,212 @@ async def handle_quiz_answer(callback: CallbackQuery):
                 await callback.message.answer(result_text, reply_markup=InlineKeyboardMarkup(inline_keyboard=result_keyboard), parse_mode="HTML")
             await callback.answer()
 
-# --- بنك أسئلة اختبار تحديد المستوى المتجدد (20 سؤالاً CEFR) ---
+# ---------------------------------------------------------------------------
+# بنك أسئلة اختبار تحديد المستوى المتجدد (20 سؤالاً CEFR)
+# ---------------------------------------------------------------------------
 PLACEMENT_QUESTIONS_POOL = [
     # A1 Level
     [
-        {"q": "A1: What _____ your name?", "opts": ["is", "are", "be", "am"], "c": 0, "exp": "مع الضمائر المفردة غير المتكلم نستخدم فعل الكينونة is."},
-        {"q": "A1: Where _____ you from?", "opts": ["is", "am", "are", "be"], "c": 2, "exp": "مع الضمير you نستخدم دائماً are في السؤال والحاضر."},
-        {"q": "A1: She _____ two brothers and a sister.", "opts": ["have", "has", "is", "having"], "c": 1, "exp": "مع الفاعل المفرد الغائب (She) نستخدم has."},
-        {"q": "A1: I get up _____ 7 o'clock every morning.", "opts": ["on", "in", "at", "to"], "c": 2, "exp": "نستخدم حرف الجر at مع الساعات المحددة."}
+        {"question": "What _____ your name?", "options": ["is", "are", "be", "am"], "correct": 0, "exp": "مع المفرد غير المتكلم نستخدم فعل الكينونة is."},
+        {"question": "Where _____ you from?", "options": ["is", "am", "are", "be"], "correct": 2, "exp": "مع الضمير you نستخدم دائماً are."},
+        {"question": "She _____ two brothers and a sister.", "options": ["have", "has", "is", "having"], "correct": 1, "exp": "مع الفاعل المفرد الغائب (She) نستخدم has."},
+        {"question": "I get up _____ 7 o'clock every morning.", "options": ["on", "in", "at", "to"], "correct": 2, "exp": "نستخدم حرف الجر at مع الساعات المحددة."}
     ],
     # A2 Level
     [
-        {"q": "A2: Yesterday, we _____ to the national museum.", "opts": ["go", "went", "gone", "going"], "c": 1, "exp": "الدلالة الزمنية Yesterday تتطلب صيغة الماضي البسيط went."},
-        {"q": "A2: Look! It _____ outside right now.", "opts": ["rains", "rained", "is raining", "rain"], "c": 2, "exp": "كلمة Look و right now تدل على المضارع المستمر (is raining)."},
-        {"q": "A2: This laptop is _____ than the old one.", "opts": ["more cheap", "cheaper", "cheap", "cheapest"], "c": 1, "exp": "الصفات القصيرة تضاف لها er في المقارنة: cheaper than."},
-        {"q": "A2: Have you ever _____ to London?", "opts": ["be", "been", "was", "went"], "c": 1, "exp": "في صيغة المضارع التام بعد have/has نستخدم التصريف الثالث been."}
+        {"question": "Yesterday, we _____ to the national museum.", "options": ["go", "went", "gone", "going"], "correct": 1, "exp": "الدلالة Yesterday تتطلب صيغة الماضي البسيط went."},
+        {"question": "Look! It _____ outside right now.", "options": ["rains", "rained", "is raining", "rain"], "correct": 2, "exp": "كلمة Look تدل على المضارع المستمر (is raining)."},
+        {"question": "This laptop is _____ than the old one.", "options": ["more cheap", "cheaper", "cheap", "cheapest"], "correct": 1, "exp": "الصفات القصيرة تضاف لها er في المقارنة: cheaper than."},
+        {"question": "Have you ever _____ to London?", "options": ["be", "been", "was", "went"], "correct": 1, "exp": "في المضارع التام بعد have نستخدم التصريف الثالث been."}
     ],
     # B1 Level
     [
-        {"q": "B1: If it _____ tomorrow, we will cancel the trip.", "opts": ["rains", "will rain", "rained", "is raining"], "c": 0, "exp": "في جملة الشرط الأولى (First Conditional) يكون فعل الشرط مضارعاً بسيطاً."},
-        {"q": "B1: I've lived in this city _____ five years.", "opts": ["since", "for", "during", "from"], "c": 1, "exp": "نستخدم for مع المدة الزمنية المحسوبة (five years)."},
-        {"q": "B1: The report _____ by the committee yesterday.", "opts": ["was written", "wrote", "is written", "had written"], "c": 0, "exp": "جملة مبني للمجهول في الماضي البسيط: was + V3."},
-        {"q": "B1: You _____ smoke in this hospital; it is forbidden.", "opts": ["don't have to", "mustn't", "needn't", "might not"], "c": 1, "exp": "نستخدم mustn't للتعبير عن التحريم والمنع القانوني القاطع."}
+        {"question": "If it _____ tomorrow, we will cancel the trip.", "options": ["rains", "will rain", "rained", "is raining"], "correct": 0, "exp": "في جملة الشرط الأولى يكون فعل الشرط مضارعاً بسيطاً."},
+        {"question": "I've lived in this city _____ five years.", "options": ["since", "for", "during", "from"], "correct": 1, "exp": "نستخدم for مع المدة الزمنية المحسوبة (five years)."},
+        {"question": "The report _____ by the committee yesterday.", "options": ["was written", "wrote", "is written", "had written"], "correct": 0, "exp": "جملة مبني للمجهول في الماضي البسيط: was + V3."},
+        {"question": "You _____ smoke in this hospital; it is forbidden.", "options": ["don't have to", "mustn't", "needn't", "might not"], "correct": 1, "exp": "نستخدم mustn't للتعبير عن التحريم والمنع القاطع."}
     ],
     # B2 Level
     [
-        {"q": "B2: If I _____ you, I would accept the scholarship.", "opts": ["was", "were", "am", "had been"], "c": 1, "exp": "في الحالة الشرطية الثانية لتقديم النصيحة نستخدم were مع كل الضمائر."},
-        {"q": "B2: Despite _____ hard, he didn't score full marks.", "opts": ["he studied", "studying", "study", "of studying"], "c": 1, "exp": "حرف الجر Despite يتبعه دائماً Gerund (-ing) أو اسم."},
-        {"q": "B2: She apologized _____ arriving late to the seminar.", "opts": ["for", "to", "about", "on"], "c": 0, "exp": "الفعل apologize يأخذ حرف الجر for مع الفعل المضاف له ing."},
-        {"q": "B2: By the time the doctor arrived, the patient _____.", "opts": ["recovered", "had recovered", "has recovered", "was recovering"], "c": 1, "exp": "الحدث الأسبق في الماضي يوضع في زمن الماضي التام had + V3."}
+        {"question": "If I _____ you, I would accept the scholarship.", "options": ["was", "were", "am", "had been"], "correct": 1, "exp": "في الحالة الشرطية الثانية لتقديم النصيحة نستخدم were مع كل الضمائر."},
+        {"question": "Despite _____ hard, he didn't score full marks.", "options": ["he studied", "studying", "study", "of studying"], "correct": 1, "exp": "حرف الجر Despite يتبعه دائماً Gerund (-ing) أو اسم."},
+        {"question": "She apologized _____ arriving late to the seminar.", "options": ["for", "to", "about", "on"], "correct": 0, "exp": "الفعل apologize يأخذ حرف الجر for مع الفعل المضاف له ing."},
+        {"question": "By the time the doctor arrived, the patient _____.", "options": ["recovered", "had recovered", "has recovered", "was recovering"], "correct": 1, "exp": "الحدث الأسبق في الماضي يوضع في زمن الماضي التام had + V3."}
     ],
     # C1/C2 Advanced Level
     [
-        {"q": "C1: Hardly _____ the lecture hall when the fire alarm rang.", "opts": ["I had entered", "had I entered", "entered I", "I entered"], "c": 1, "exp": "ظروف النفي مثل Hardly تتطلب قلباً في ترتيب الجملة (Inversion: Had + Subject + V3)."},
-        {"q": "C1: It is imperative that the candidate _____ on time.", "opts": ["be", "is", "was", "will be"], "c": 0, "exp": "صيغة الـ Subjunctive بعد صفات مثل imperative تستوجب الفعل في المصدر المجرد (be)."},
-        {"q": "C2: The professor's argument was so _____ that no one refuted it.", "opts": ["cogent", "lucid", "ambiguous", "trivial"], "c": 0, "exp": "كلمة Cogent تعني حجة مقنعة ومفحمة لا يمكن دحضها بسهولة."},
-        {"q": "C2: Under no circumstances _____ allowed to leave the premises.", "opts": ["are visitors", "visitors are", "were visitors", "have visitors"], "c": 0, "exp": "العبارة الشرطية السالبة Under no circumstances تفرض تقديم الفعل المساعد على الفاعل (Inversion)."}
+        {"question": "Hardly _____ the lecture hall when the fire alarm rang.", "options": ["I had entered", "had I entered", "entered I", "I entered"], "correct": 1, "exp": "ظروف النفي مثل Hardly تتطلب قلباً في ترتيب الجملة (Inversion)."},
+        {"question": "It is imperative that the candidate _____ on time.", "options": ["be", "is", "was", "will be"], "correct": 0, "exp": "صيغة الـ Subjunctive بعد صفات مثل imperative تستوجب الفعل مجرداً (be)."},
+        {"question": "The professor's argument was so _____ that no one refuted it.", "options": ["cogent", "lucid", "ambiguous", "trivial"], "correct": 0, "exp": "كلمة Cogent تعني حجة مقنعة ومفحمة لا يمكن دحضها بسهولة."},
+        {"question": "Under no circumstances _____ allowed to leave the premises.", "options": ["are visitors", "visitors are", "were visitors", "have visitors"], "correct": 0, "exp": "العبارة الشرطية السالبة Under no circumstances تفرض تقديم الفعل على الفاعل (Inversion)."}
     ]
 ]
 
-def generate_placement_quiz_set():
+def sample_diagnostic_placement_questions():
     selected_questions = []
     for level_group in PLACEMENT_QUESTIONS_POOL:
         sample = random.sample(level_group, min(4, len(level_group)))
         selected_questions.extend(sample)
     return selected_questions
 
-placement_sessions = {}
+def get_placement_level_info(score: int, total: int = 20) -> tuple[str, str]:
+    if score <= 4:
+        return "A1 (Beginner)", "level_a1"
+    elif score <= 8:
+        return "A2 (Elementary)", "level_a2"
+    elif score <= 12:
+        return "B1 (Intermediate)", "level_b1"
+    elif score <= 16:
+        return "B2 (Upper-Intermediate)", "level_b2"
+    else:
+        return "C1/C2 (Advanced & Mastery)", "level_c1"
 
-@quizzes_router.callback_query(F.data == "start_placement_test")
-async def handle_start_placement(callback: CallbackQuery):
-    user_id = callback.from_user.id
-    questions = generate_placement_quiz_set()
-    placement_sessions[user_id] = {
-        "questions": questions,
-        "current_index": 0,
-        "score": 0,
-        "answers_history": []
-    }
+def build_placement_question_keyboard(q_idx: int, score: int, options: list[str]) -> InlineKeyboardMarkup:
+    keyboard = []
+    for i, opt in enumerate(options):
+        keyboard.append([
+            InlineKeyboardButton(text=f"{chr(65+i)}) {opt}", callback_data=f"pt_{q_idx}_{i}_{score}")
+        ])
+    keyboard.append([InlineKeyboardButton(text="❌ إلغاء الاختبار | Cancel", callback_data="back_to_courses")])
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+# ---------------------------------------------------------------------------
+# مشغل اختبار تحديد المستوى (من القائمة السفلية ومن الأزرار)
+# ---------------------------------------------------------------------------
+@quizzes_router.message(F.text.contains("اختبار المستوى") | F.text.contains("Placement Test"))
+async def handle_placement_test(message: Message):
+    """Displays the updated 20-question Placement Test overview and launch button."""
+    text = (
+        "📝 <b>اختبار تحديد المستوى الأكاديمي المعتمد (متجدد آلياً)</b>\n"
+        "المشرف العام: <b>Lect. Mohammed Hussein</b>\n\n"
+        "━━━━━━━━━━━━━━━━━━━\n"
+        "يتكون الاختبار من <b>20 سؤالاً تشخيصياً</b> متدرج الصعوبة (من A1 حتى C2).\n"
+        "• 🔄 <b>أسئلة متجددة آلياً:</b> لا يتكرر نفس النموذج لضمان قياس مستواك الحقيقي بدقة.\n"
+        "• 🏛️ <b>توثيق رسمي:</b> تُحفظ النتيجة في قاعدة بيانات الأكاديمية على Notion فور انتهائك.\n"
+        "• 🎓 <b>شهادة إلكترونية رسمية (PDF):</b> تُصدر وتحمل باسمك فوراً عند إتمام الاختبار!\n\n"
+        "👇 <b>اضغط على الزر أدناه لبدء الاختبار الآن:</b>"
+    )
+    keyboard = [
+        [InlineKeyboardButton(text="🚀 ابدأ اختبار المستوى الآن | Start Test", callback_data="start_placement_test")],
+        [InlineKeyboardButton(text="📚 دليل الكورسات | Courses", callback_data="back_to_courses")]
+    ]
+    await message.answer(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard), parse_mode="HTML")
+
+@quizzes_router.callback_query(F.data.in_(["start_placement_test", "retake_placement_test"]))
+async def handle_start_placement_test(callback: CallbackQuery, state: FSMContext):
+    """Generates a fresh, randomized 20-question placement test and launches Question 1."""
+    questions = sample_diagnostic_placement_questions()
+    await state.update_data(placement_questions=questions)
 
     first_q = questions[0]
-    keyboard = []
-    for idx, opt in enumerate(first_q["opts"]):
-        keyboard.append([
-            InlineKeyboardButton(text=f"{chr(65+idx)}) {opt}", callback_data=f"plce_ans_{idx}")
-        ])
-
-    card_text = (
-        f"📝 <b>اختبار تحديد المستوى الأكاديمي المعتمد | Placement Test</b>\n"
-        f"المشرف العام: <b>Lect. Mohammed Hussein</b>\n\n"
-        f"━━━━━━━━━━━━━━━━━━━\n"
-        f"❓ <b>السؤال 1 من {len(questions)}:</b>\n"
-        f"<b>{first_q['q']}</b>\n\n"
-        f"<i>اختر الإجابة الأدق والأصح لغوياً أدناه:</i>"
+    total_q = len(questions)
+    text = (
+        f"📝 <b>اختبار تحديد المستوى (السؤال 1 من {total_q})</b>\n\n"
+        f"❓ <b>{first_q['question']}</b>"
     )
-
+    keyboard = build_placement_question_keyboard(0, 0, first_q["options"])
     try:
-        await callback.message.edit_text(card_text, reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard), parse_mode="HTML")
+        await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
     except Exception:
-        await callback.message.answer(card_text, reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard), parse_mode="HTML")
+        await callback.message.answer(text, reply_markup=keyboard, parse_mode="HTML")
     await callback.answer()
 
-@quizzes_router.callback_query(F.data.startswith("plce_ans_"))
-async def handle_placement_answer(callback: CallbackQuery):
-    user_id = callback.from_user.id
-    chosen_opt = int(callback.data.split("_")[-1])
+@quizzes_router.callback_query(F.data.startswith("pt_"))
+async def handle_placement_test_answer(callback: CallbackQuery, state: FSMContext):
+    """Evaluates question answer, advances through 20 questions, and issues the official certificate."""
+    parts = callback.data.split("_")
+    q_idx = int(parts[1])
+    selected_opt = int(parts[2])
+    score = int(parts[3])
 
-    session = placement_sessions.get(user_id)
-    if not session:
-        await callback.answer("انتهت جلسة الاختبار الحالية، يرجى البدء من جديد.", show_alert=True)
-        return
+    data = await state.get_data()
+    questions = data.get("placement_questions")
+    if not questions or q_idx >= len(questions):
+        questions = sample_diagnostic_placement_questions()
+        await state.update_data(placement_questions=questions)
 
-    questions = session["questions"]
-    curr_idx = session["current_index"]
-    current_q = questions[curr_idx]
+    current_q = questions[q_idx]
+    if selected_opt == current_q["correct"]:
+        score += 1
 
-    is_correct = (chosen_opt == current_q["c"])
-    if is_correct:
-        session["score"] += 1
+    next_idx = q_idx + 1
+    total_q = len(questions)
 
-    session["answers_history"].append({
-        "q": current_q["q"],
-        "correct": is_correct,
-        "exp": current_q["exp"]
-    })
-
-    session["current_index"] += 1
-    next_idx = session["current_index"]
-
-    if next_idx < len(questions):
+    if next_idx < total_q:
         next_q = questions[next_idx]
-        keyboard = []
-        for idx, opt in enumerate(next_q["opts"]):
-            keyboard.append([
-                InlineKeyboardButton(text=f"{chr(65+idx)}) {opt}", callback_data=f"plce_ans_{idx}")
-            ])
-
-        card_text = (
-            f"📝 <b>اختبار تحديد المستوى الأكاديمي المعتمد</b>\n"
-            f"━━━━━━━━━━━━━━━━━━━\n"
-            f"❓ <b>السؤال {next_idx + 1} من {len(questions)}:</b>\n"
-            f"<b>{next_q['q']}</b>\n\n"
-            f"<i>اختر الإجابة الصحيحة أدناه:</i>"
+        text = (
+            f"📝 <b>اختبار تحديد المستوى (السؤال {next_idx + 1} من {total_q})</b>\n\n"
+            f"❓ <b>{next_q['question']}</b>"
         )
+        keyboard = build_placement_question_keyboard(next_idx, score, next_q["options"])
         try:
-            await callback.message.edit_text(card_text, reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard), parse_mode="HTML")
+            await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
         except Exception:
-            await callback.message.answer(card_text, reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard), parse_mode="HTML")
+            await callback.message.answer(text, reply_markup=keyboard, parse_mode="HTML")
         await callback.answer()
     else:
-        final_score = session["score"]
-        total_q = len(questions)
+        # اكتمل الاختبار بنجاح!
+        level_name, target_callback = get_placement_level_info(score, total_q)
+        final_score = score
+        user_level = level_name
         tg_user = callback.from_user
+        raw_name = (tg_user.full_name or tg_user.username or "Student") if tg_user else "Student"
 
-        if final_score <= 4:
-            user_level = "A1 (Beginner)"
-            rec_course = "كورس التأسيس الشامل للمبتدئين (A1 - Starter)"
-        elif final_score <= 8:
-            user_level = "A2 (Elementary)"
-            rec_course = "كورس بناء الجمل والتراكيب اللغوية (A2 - Elementary)"
-        elif final_score <= 12:
-            user_level = "B1 (Intermediate)"
-            rec_course = "كورس اللغة المتوسطة والمحادثة المتقدمة (B1 - Intermediate)"
-        elif final_score <= 16:
-            user_level = "B2 (Upper-Intermediate)"
-            rec_course = "كورس الكتابة الأكاديمية والامتحان التنافسي (B2 - Competitive Preparation)"
-        else:
-            user_level = "C1/C2 (Advanced & Mastery)"
-            rec_course = "كورس الإتقان الأكاديمي والتحضير لاختبار INELT الوطني الموحد"
+        # حفظ النتيجة في Notion
+        if tg_user:
+            try:
+                save_to_notion(tg_user.first_name, tg_user.username, final_score, user_level)
+            except Exception as e:
+                print(f"[Notion Placement Error] {e}")
 
-        # حفظ في Notion
-        first_name = tg_user.first_name if tg_user else "طالب"
-        username = tg_user.username if tg_user else None
-        try:
-            save_to_notion(first_name, username, final_score, user_level)
-        except Exception as e:
-            print(f"[Notion Placement Error] {e}")
+        # تسجيل المحاولة في قاعدة البيانات
+        if tg_user:
+            try:
+                async with AsyncSessionLocal() as session:
+                    u_query = select(User).where(User.telegram_id == tg_user.id)
+                    u_res = await session.execute(u_query)
+                    user = u_res.scalar_one_or_none()
+                    if user:
+                        attempt = QuizAttempt(
+                            user_id=user.id,
+                            quiz_id=1,
+                            score=round((final_score / total_q) * 100),
+                            passed=(final_score >= 10)
+                        )
+                        session.add(attempt)
+                        await session.commit()
+            except Exception as e:
+                print(f"[Database Progress Error] {e}")
+
+        result_text = (
+            "🏆 <b>نتيجة اختبار تحديد المستوى المعتمد</b> 🎓\n"
+            "━━━━━━━━━━━━━━━━━━━\n"
+            f"👤 <b>الطالب:</b> {html.escape(raw_name)}\n"
+            f"📊 <b>النتيجة المحققة:</b> {final_score} من {total_q} أسئلة ({round((final_score/total_q)*100)}%)\n"
+            f"🏅 <b>المستوى اللغوي (CEFR):</b>\n👉 <b>{user_level}</b>\n\n"
+            "🏛️ <b>تم توثيق نتيجتك رسمياً في قاعدة بيانات أكاديمية Fluence على Notion.</b>\n"
+            "📜 <i>تم توليد وإصدار شهادتك الرسمية المعتمدة بصيغة PDF وتجدها مرفقة أدناه:</i>"
+        )
 
         result_keyboard = [
             [InlineKeyboardButton(text="🎓 تحميل شهادتي الرسمية المعتمدة (PDF)", callback_data=f"download_cert_{final_score}_{total_q}")],
-            [InlineKeyboardButton(text="📚 تصفح الكورس الموصى به لمستواك", callback_data="back_to_courses")],
+            [InlineKeyboardButton(text="📖 تصفح كورس مستواي الموصى به", callback_data=target_callback)],
             [InlineKeyboardButton(text="🔄 إعادة الاختبار بنموذج جديد", callback_data="start_placement_test")],
-            [InlineKeyboardButton(text="🏠 العودة للرئيسية | Main Menu", callback_data="back_to_main_menu")]
+            [InlineKeyboardButton(text="🏠 القائمة الرئيسية | Main Menu", callback_data="back_to_main_menu")]
         ]
 
-        raw_name = (tg_user.full_name or tg_user.username or "Student") if tg_user else "Student"
-        result_card = (
-            f"🏆 <b>نتيجة اختبار تحديد المستوى المعتمد</b> 🎓\n"
-            f"━━━━━━━━━━━━━━━━━━━\n"
-            f"👤 <b>الطالب:</b> {html.escape(raw_name)}\n"
-            f"📊 <b>النتيجة:</b> {final_score} من أصل {total_q} أسئلة تشخيصية.\n"
-            f"🏅 <b>مستواك وفق المعيار الأوروبي (CEFR):</b>\n"
-            f"👉 <b>{user_level}</b>\n\n"
-            f"🎯 <b>المسار التعليمي الموصى به:</b>\n"
-            f"• {rec_course}\n\n"
-            f"🏛️ <b>تم توثيق نتيجتك رسمياً في قاعدة بيانات أكاديمية Fluence على Notion.</b>\n"
-            f"📜 <i>تم إصدار شهادة إلكترونية رسمية معتمدة بمستواك تجدها مرفقة أدناه:</i>"
-        )
-
+        await state.clear()
         try:
-            await callback.message.edit_text(result_card, reply_markup=InlineKeyboardMarkup(inline_keyboard=result_keyboard), parse_mode="HTML")
+            await callback.message.edit_text(result_text, reply_markup=InlineKeyboardMarkup(inline_keyboard=result_keyboard), parse_mode="HTML")
         except Exception:
-            await callback.message.answer(result_card, reply_markup=InlineKeyboardMarkup(inline_keyboard=result_keyboard), parse_mode="HTML")
+            await callback.message.answer(result_text, reply_markup=InlineKeyboardMarkup(inline_keyboard=result_keyboard), parse_mode="HTML")
         await callback.answer()
 
-        # توليد وإرسال الشهادة الرسمية تلقائياً
+        # إرسال الشهادة تلقائياً للطالب
         if tg_user:
             try:
                 cert_id = f"FA-CEFR-{datetime.now().year}-{tg_user.id % 10000:04d}"
                 today_date = datetime.now().strftime("%Y-%m-%d")
-                
                 latin_chars = "".join(c for c in raw_name if (65 <= ord(c) <= 90 or 97 <= ord(c) <= 122 or c == " ")).strip()
                 student_display_name = latin_chars if len(latin_chars) >= 3 else (f"Scholar @{tg_user.username}" if tg_user.username else "Fluence Academy Scholar")
 
@@ -563,12 +577,14 @@ async def handle_placement_answer(callback: CallbackQuery):
                 if os.path.exists(cert_path) and os.path.getsize(cert_path) > 0:
                     doc = FSInputFile(cert_path, filename=f"Fluence_Certificate_{cert_id}.pdf")
                     caption = (
-                        f"🎓 <b>شهادة إلكترونية رسمية معتمدة | Official Certificate</b>\n"
-                        f"━━━━━━━━━━━━━━━━━━━\n"
-                        f"تمنح أكاديمية Fluence هذه الشهادة للطالب <b>{html.escape(raw_name)}</b> "
-                        f"لاجتيازه اختبار قياس المستوى بنتيجة <b>{final_score}/{total_q}</b> ومستوى <b>{user_level}</b>.\n\n"
-                        f"المشرف العام: <b>Lect. Mohammed Hussein</b>\n"
-                        f"رقم التوثيق: <code>{cert_id}</code>"
+                        "🎓 <b>تهانينا الحارة! إليك شهادتك الرسمية المعتمدة من أكاديمية Fluence</b> 🌟\n"
+                        "═══════════════════════════════\n"
+                        f"👤 <b>اسم الطالب:</b> {html.escape(raw_name)}\n"
+                        f"📊 <b>الدرجة المحققة:</b> {final_score} من {total_q} ({round((final_score/total_q)*100, 1)}%)\n"
+                        f"🏆 <b>المستوى الأكاديمي (CEFR):</b> {user_level}\n"
+                        f"🆔 <b>رقم الاعتماد:</b> <code>{cert_id}</code>\n"
+                        f"✍️ <b>المشرف العام:</b> Lect. Mohammed Hussein\n\n"
+                        "<i>تم توثيق وحفظ الشهادة رسمياً في قاعدة بيانات الأكاديمية. يمكنك تحميلها وطباعتها الآن! ✨</i>"
                     )
                     try:
                         await callback.message.answer_document(
@@ -585,11 +601,11 @@ async def handle_placement_answer(callback: CallbackQuery):
                                 parse_mode="HTML"
                             )
             except Exception as cert_err:
-                print(f"[Auto Certificate Delivery Error] {cert_err}")
+                print(f"[Auto Certificate Notice] {cert_err}")
 
-        # تنظيف الجلسة
-        placement_sessions.pop(user_id, None)
-
+# ---------------------------------------------------------------------------
+# تحميل الشهادة عند الضغط على زر التحميل المباشر
+# ---------------------------------------------------------------------------
 @quizzes_router.callback_query(F.data.startswith("download_cert_"))
 async def handle_download_cert_callback(callback: CallbackQuery):
     """Generates and delivers the official PDF Certificate of English Proficiency on demand."""
@@ -602,17 +618,7 @@ async def handle_download_cert_callback(callback: CallbackQuery):
     score = int(parts[2]) if len(parts) > 2 else 10
     total_q = int(parts[3]) if len(parts) > 3 else 20
 
-    if score <= 4:
-        level_name = "A1 (Beginner)"
-    elif score <= 8:
-        level_name = "A2 (Elementary)"
-    elif score <= 12:
-        level_name = "B1 (Intermediate)"
-    elif score <= 16:
-        level_name = "B2 (Upper-Intermediate)"
-    else:
-        level_name = "C1/C2 (Advanced & Mastery)"
-
+    level_name, _ = get_placement_level_info(score, total_q)
     tg_user = callback.from_user
     raw_name = (tg_user.full_name or tg_user.username or "Student") if tg_user else "Student"
     latin_chars = "".join(c for c in raw_name if (65 <= ord(c) <= 90 or 97 <= ord(c) <= 122 or c == " ")).strip()
@@ -640,12 +646,14 @@ async def handle_download_cert_callback(callback: CallbackQuery):
         if os.path.exists(cert_path) and os.path.getsize(cert_path) > 0:
             doc = FSInputFile(cert_path, filename=f"Fluence_Certificate_{cert_id}.pdf")
             caption = (
-                "🎓 <b>نسخة شهادتك الرسمية المعتمدة | Official Certificate</b>\n"
-                "━━━━━━━━━━━━━━━━━━━\n"
-                f"الطالب: <b>{html.escape(raw_name)}</b>\n"
-                f"المستوى المحقق: <b>{level_name}</b> ({score}/{total_q})\n"
-                f"المشرف العام: <b>Lect. Mohammed Hussein</b>\n"
-                f"رقم التوثيق: <code>{cert_id}</code>"
+                "🎓 <b>شهادة إنجاز معتمدة لاختبار تحديد المستوى</b> 🌟\n"
+                "═══════════════════════════════\n"
+                f"👤 <b>اسم الطالب:</b> {html.escape(raw_name)}\n"
+                f"📊 <b>الدرجة المحققة:</b> {score} من {total_q} ({round((score/total_q)*100, 1)}%)\n"
+                f"🏆 <b>المستوى الأكاديمي (CEFR):</b> {level_name}\n"
+                f"🆔 <b>رقم الاعتماد:</b> <code>{cert_id}</code>\n"
+                f"✍️ <b>المشرف العام:</b> Lect. Mohammed Hussein\n\n"
+                "<i>تم توثيق وحفظ الشهادة رسمياً في قاعدة بيانات الأكاديمية. يمكنك تحميلها وطباعتها! ✨</i>"
             )
             try:
                 await callback.message.answer_document(
@@ -664,5 +672,218 @@ async def handle_download_cert_callback(callback: CallbackQuery):
         else:
             await callback.answer("⚠️ تعذر إنشاء الشهادة حالياً، يرجى المحاولة بعد قليل.", show_alert=True)
     except Exception as e:
-        print(f"[Certificate Download Error] {e}")
+        print(f"[Cert Download Error] {e}")
         await callback.message.answer("⚠️ حدث تأخر مؤقت في إصدار ملف الشهادة. يرجى المحاولة مرة أخرى.")
+
+# ---------------------------------------------------------------------------
+# قسم الاختبارات اليومية وسجل درجات الطالب (من القائمة السفلية)
+# ---------------------------------------------------------------------------
+@quizzes_router.message(F.text.contains("الاختبارات اليومية") | F.text.contains("Quizzes"))
+async def handle_quizzes_and_grades(message: Message):
+    """Displays student quiz history, daily challenges, and scores."""
+    tg_user = message.from_user
+    if not tg_user:
+        return
+
+    async with AsyncSessionLocal() as session:
+        u_query = select(User).where(User.telegram_id == tg_user.id)
+        u_result = await session.execute(u_query)
+        user = u_result.scalar_one_or_none()
+
+        if not user:
+            await message.answer("⚠️ يرجى كتابة /start أولاً لتفعيل حسابك الأكاديمي.")
+            return
+
+        att_query = select(QuizAttempt).where(QuizAttempt.user_id == user.id).order_by(QuizAttempt.attempt_date.desc() if hasattr(QuizAttempt, 'attempt_date') else QuizAttempt.id.desc())
+        try:
+            att_result = await session.execute(att_query)
+            attempts = att_result.scalars().all()
+        except Exception:
+            attempts = []
+
+        quizzes_q = select(Quiz).limit(5)
+        quizzes_res = await session.execute(quizzes_q)
+        available_quizzes = quizzes_res.scalars().all()
+
+    text = f"🎯 <b>قسم الاختبارات والتقييم اليومي | Quizzes & Grades</b>\n\n"
+    text += f"👤 <b>الطالب:</b> {user.full_name}\n"
+
+    if attempts:
+        text += f"📊 <b>نتائج آخر الاختبارات المنجزة:</b>\n"
+        for att in attempts[:5]:
+            badge = "✅ ناجح" if att.passed else "❌ تدرب أكثر"
+            score_val = getattr(att, 'score', getattr(att, 'score_percentage', 0))
+            text += f"• اختبار #{att.quiz_id}: النتيجة <b>{score_val}%</b> ({badge})\n"
+        text += "\n"
+    else:
+        text += "لم تقم بأداء أي اختبارات بعد. ابدأ الآن بتحدي معلوماتك اليومية! 🚀\n\n"
+
+    keyboard = [
+        [InlineKeyboardButton(text="💡 معلومة اليوم واختبارها (متجددة آلياً 🎙️)", callback_data="open_daily_info")],
+        [InlineKeyboardButton(text="🔄 اختبار ذكي متجدد (AI Quiz Generator)", callback_data="refresh_daily_lesson")],
+    ]
+
+    if available_quizzes:
+        keyboard.append([InlineKeyboardButton(text="─── 📚 اختبارات الدروس والكورسات ───", callback_data="ignore_header")])
+        for q in available_quizzes:
+            keyboard.append([InlineKeyboardButton(text=f"✍️ {q.title}", callback_data=f"start_quiz_{q.lesson_id or q.id}")])
+
+    keyboard.append([InlineKeyboardButton(text="📚 الانتقال للدورات | Courses", callback_data="back_to_courses")])
+
+    await message.answer(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard), parse_mode="HTML")
+
+@quizzes_router.callback_query(F.data == "ignore_header")
+async def handle_ignore_header(callback: CallbackQuery):
+    await callback.answer()
+
+@quizzes_router.callback_query(F.data.in_(["back_to_quizzes_menu", "open_quizzes_hub"]))
+async def handle_back_to_quizzes_menu(callback: CallbackQuery):
+    await callback.answer()
+    if callback.message:
+        await handle_quizzes_and_grades(callback.message)
+
+# ---------------------------------------------------------------------------
+# كبسولة معلومة اليوم الصوتية باللكنة البريطانية (Daily Info & Voice)
+# ---------------------------------------------------------------------------
+@quizzes_router.callback_query(F.data == "open_daily_info")
+async def handle_open_daily_info(callback: CallbackQuery):
+    await callback.answer("جاري تجهيز معلومة اليوم واختبارها...")
+    lesson = get_today_lesson(force_refresh=False)
+    await send_daily_lesson_to_user(callback.bot, callback.message.chat.id, lesson, send_voice=True)
+
+@quizzes_router.callback_query(F.data == "refresh_daily_lesson")
+async def handle_refresh_daily_lesson(callback: CallbackQuery):
+    await callback.answer("🔄 جاري توليد معلومة واختبار جديد بالذكاء الاصطناعي...")
+    await callback.message.answer(
+        "⚡ <b>جاري إعداد محتوى تعليمي واختبار جديد بالذكاء الاصطناعي...</b>\n<i>ثوانٍ معدودة...</i>",
+        parse_mode="HTML"
+    )
+    lesson = await asyncio.to_thread(get_today_lesson, force_refresh=True)
+    await send_daily_lesson_to_user(callback.bot, callback.message.chat.id, lesson, send_voice=True)
+
+# ---------------------------------------------------------------------------
+# اختبار فهم معلومة اليوم وتصحيحها الفوري (Daily Info Quiz)
+# ---------------------------------------------------------------------------
+@quizzes_router.callback_query(F.data == "start_daily_info_quiz")
+async def handle_start_daily_info_quiz(callback: CallbackQuery):
+    lesson = get_today_lesson(force_refresh=False)
+    questions = lesson.get("questions", [])
+
+    if not questions:
+        await callback.answer("عذراً، الأسئلة قيد التجهيز.", show_alert=True)
+        return
+
+    first_q = questions[0]
+    total_q = len(questions)
+
+    text = (
+        f"📝 <b>اختبار معلومة اليوم: {lesson.get('topic', 'English Lesson')}</b>\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"<b>السؤال 1 من {total_q}:</b>\n\n"
+        f"❓ {first_q['question']}"
+    )
+
+    keyboard = []
+    for opt_idx, opt_text in enumerate(first_q.get("options", [])):
+        keyboard.append([
+            InlineKeyboardButton(
+                text=opt_text,
+                callback_data=f"dquiz_0_{opt_idx}_0"
+            )
+        ])
+
+    await callback.message.answer(
+        text,
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
+        parse_mode="HTML"
+    )
+    await callback.answer()
+
+@quizzes_router.callback_query(F.data.startswith("dquiz_"))
+async def handle_daily_quiz_answer(callback: CallbackQuery):
+    parts = callback.data.split("_")
+    q_idx = int(parts[1])
+    selected_opt = int(parts[2])
+    current_score = int(parts[3])
+
+    lesson = get_today_lesson(force_refresh=False)
+    questions = lesson.get("questions", [])
+
+    if q_idx >= len(questions):
+        await callback.answer("انتهى الاختبار.", show_alert=True)
+        return
+
+    current_q = questions[q_idx]
+    correct_idx = current_q.get("correct_index", 0)
+    is_correct = (selected_opt == correct_idx)
+    explanation = current_q.get("explanation", "")
+
+    if is_correct:
+        current_score += 1
+        feedback = "✅ <b>إجابة صحيحة! (Correct!)</b>"
+    else:
+        correct_answer_text = current_q["options"][correct_idx] if correct_idx < len(current_q["options"]) else ""
+        feedback = f"❌ <b>إجابة خاطئة! (Incorrect)</b>\nالجواب الصحيح: <b>«{correct_answer_text}»</b>"
+
+    if explanation:
+        feedback += f"\n<i>💡 التوضيح: {explanation}</i>"
+
+    next_q_idx = q_idx + 1
+    total_q = len(questions)
+
+    if next_q_idx < total_q:
+        next_q = questions[next_q_idx]
+        text = (
+            f"{feedback}\n\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"<b>السؤال {next_q_idx + 1} من {total_q}:</b>\n\n"
+            f"❓ {next_q['question']}"
+        )
+        keyboard = []
+        for opt_idx, opt_text in enumerate(next_q.get("options", [])):
+            keyboard.append([
+                InlineKeyboardButton(
+                    text=opt_text,
+                    callback_data=f"dquiz_{next_q_idx}_{opt_idx}_{current_score}"
+                )
+            ])
+
+        await callback.message.edit_text(
+            text,
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
+            parse_mode="HTML"
+        )
+    else:
+        percentage = round((current_score / total_q) * 100, 1)
+        passed = percentage >= 70.0
+
+        if passed:
+            result_header = "🎉 <b>أحسنت صنعاً! اجتزت اختبار المعلومة بنجاح</b> 🌟"
+            status_text = "النتيجة: <b>ناجح ومتميز ✅</b>"
+        else:
+            result_header = "📚 <b>تدريب جيد! راجع المعلومة وحاول مجدداً</b>"
+            status_text = "النتيجة: <b>تحتاج لمراجعة إضافية ❌</b>"
+
+        final_text = (
+            f"{feedback}\n\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"{result_header}\n\n"
+            f"📌 <b>الموضوع:</b> {lesson.get('topic')}\n"
+            f"📊 <b>درجتك:</b> {current_score} من {total_q} ({percentage}%)\n"
+            f"{status_text}\n\n"
+            f"✨ <i>يتم تحديث معلومات وأسئلة الأكاديمية يومياً وفق جدول دراسي منتظم!</i>"
+        )
+
+        keyboard = [
+            [InlineKeyboardButton(text="🔄 معلومة واختبار آخر", callback_data="refresh_daily_lesson")],
+            [InlineKeyboardButton(text="🔙 العودة لقسم الاختبارات", callback_data="back_to_quizzes_menu")],
+            [InlineKeyboardButton(text="📚 الدورات الأكاديمية", callback_data="back_to_courses")]
+        ]
+
+        await callback.message.edit_text(
+            final_text,
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
+            parse_mode="HTML"
+        )
+
+    await callback.answer()
