@@ -3,11 +3,11 @@ import asyncio
 import logging
 from aiogram import Router, F
 from aiogram.filters import Command
-from aiogram.types import Message
+from aiogram.types import Message, FSInputFile
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
 
-from app.services.ai_service import chat_with_ai_tutor, transcribe_audio_groq
+from app.services.ai_service import chat_with_ai_tutor, transcribe_audio_groq, text_to_speech_gtts
 from app.bot.keyboards.main_menu import get_main_reply_keyboard, get_ai_chat_keyboard
 
 logger = logging.getLogger(__name__)
@@ -16,6 +16,46 @@ ai_router = Router(name="ai_router")
 
 class AITutorStates(StatesGroup):
     chatting = State()
+
+async def send_tts_voice_response(message: Message, text_to_speak: str):
+    """
+    Converts English tutor response into speech using gTTS (British Accent),
+    sends it as a voice note to the student, and safely removes the temp file.
+    """
+    storage_dir = "storage"
+    os.makedirs(storage_dir, exist_ok=True)
+    temp_tts_path = os.path.join(storage_dir, f"bot_reply_{message.from_user.id}_{message.message_id}.mp3")
+
+    try:
+        try:
+            await message.bot.send_chat_action(chat_id=message.chat.id, action="record_voice")
+        except Exception:
+            pass
+
+        await asyncio.to_thread(text_to_speech_gtts, text_to_speak, temp_tts_path)
+
+        if os.path.exists(temp_tts_path) and os.path.getsize(temp_tts_path) > 0:
+            voice_input = FSInputFile(temp_tts_path)
+            try:
+                await message.answer_voice(
+                    voice=voice_input,
+                    caption="🎧 <i>استمع إلى اللفظ والتصحيح (British Accent)</i>",
+                    parse_mode="HTML"
+                )
+            except Exception:
+                await message.answer_audio(
+                    audio=voice_input,
+                    title="English Tutor Pronunciation",
+                    performer="Fluence English Academy"
+                )
+    except Exception as tts_err:
+        logger.warning(f"[TTS Pronunciation Error] {tts_err}")
+    finally:
+        if os.path.exists(temp_tts_path):
+            try:
+                os.remove(temp_tts_path)
+            except Exception:
+                pass
 
 @ai_router.message(F.text.contains("المساعد اللغوي") | F.text.contains("AI Tutor"))
 async def handle_start_ai_tutor_chat(message: Message, state: FSMContext):
@@ -29,6 +69,8 @@ async def handle_start_ai_tutor_chat(message: Message, state: FSMContext):
         "💬 <b>كيف تبدأ؟</b>\n"
         "• اكتب أي رسالة أو جملة باللغة الإنجليزية ✍️\n"
         "• أو أرسل <b>رسالة صوتية (Voice Note) 🎙️</b> وسأستمع لنطقك وأساعدك فوراً!\n\n"
+        "🎧 <b>الميزة الصوتية التفاعلية:</b>\n"
+        "سأقوم بالرد عليك كتابياً، وسأرسل لك أيضاً <b>بصمة صوتية باللكنة البريطانية المعتمدة</b> لتستمع للنطق الصحيح وتكرره معي! 🌟\n\n"
         "🚪 <i>للخروج والعودة للقائمة الرئيسية في أي وقت، اضغط على زر</i> <b>«🔙 إنهاء المحادثة»</b>."
     )
     await message.answer(
@@ -56,8 +98,8 @@ async def handle_exit_ai_tutor_chat(message: Message, state: FSMContext):
 async def handle_ai_voice_message(message: Message, state: FSMContext):
     """
     Downloads voice note or audio, transcribes it via Groq Whisper (whisper-large-v3),
-    processes it with AI Tutor, and responds with transcribed text + feedback.
-    Deletes the temporary file afterwards.
+    processes it with AI Tutor, responds with transcribed text + feedback,
+    and sends a TTS voice response with correct pronunciation.
     """
     try:
         await message.bot.send_chat_action(chat_id=message.chat.id, action="typing")
@@ -117,6 +159,9 @@ async def handle_ai_voice_message(message: Message, state: FSMContext):
             parse_mode="HTML"
         )
 
+        # 7. Generate & send voice note with correct pronunciation
+        await send_tts_voice_response(message, ai_reply)
+
     except Exception as e:
         logger.error(f"[Voice Handler Error] {e}", exc_info=True)
         await message.answer(
@@ -135,7 +180,7 @@ async def handle_ai_voice_message(message: Message, state: FSMContext):
 
 @ai_router.message(AITutorStates.chatting, F.text)
 async def handle_ai_chat_message(message: Message, state: FSMContext):
-    """Processes student messages with AI Tutor in conversation mode."""
+    """Processes student text messages with AI Tutor, then replies with text and voice note."""
     user_text = message.text.strip()
     if not user_text:
         return
@@ -156,10 +201,14 @@ async def handle_ai_chat_message(message: Message, state: FSMContext):
         history = history[-20:]
     await state.update_data(history=history)
 
+    # 1. Send text response
     await message.answer(
         ai_reply,
         reply_markup=get_ai_chat_keyboard()
     )
+
+    # 2. Send TTS voice pronunciation
+    await send_tts_voice_response(message, ai_reply)
 
 @ai_router.message(Command("ai"))
 async def handle_ai_command(message: Message):
@@ -183,3 +232,4 @@ async def handle_ai_command(message: Message):
 
     response = await asyncio.to_thread(chat_with_ai_tutor, question)
     await message.answer(response)
+    await send_tts_voice_response(message, response)
