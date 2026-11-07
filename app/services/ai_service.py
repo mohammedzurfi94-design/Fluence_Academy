@@ -63,6 +63,55 @@ def chat_with_groq(api_key: str, user_message: str, history: Optional[List[Dict[
 
     raise Exception(f"All Groq models failed. Last error: {last_error}")
 
+def transcribe_audio_groq(file_path: str, api_key: Optional[str] = None) -> str:
+    """
+    Transcribes student English voice notes using Groq Whisper models (whisper-large-v3).
+    Supports both official groq SDK and direct HTTP fallback.
+    """
+    key = api_key or os.getenv("GROQ_API_KEY") or getattr(settings, "GROQ_API_KEY", None) or DEFAULT_GROQ_API_KEY
+    if key:
+        key = str(key).strip().strip("'\"")
+
+    # Method 1: Try official groq SDK
+    try:
+        from groq import Groq
+        client = Groq(api_key=key)
+        with open(file_path, "rb") as f:
+            transcription = client.audio.transcriptions.create(
+                file=(os.path.basename(file_path), f.read()),
+                model="whisper-large-v3",
+                language="en",
+                response_format="json"
+            )
+            if transcription and transcription.text:
+                return transcription.text.strip()
+    except Exception as sdk_err:
+        logger.warning(f"[Groq SDK Whisper Warning] {sdk_err}, trying direct HTTP...")
+
+    # Method 2: Direct HTTP fallback
+    url = "https://api.groq.com/openai/v1/audio/transcriptions"
+    headers = {"Authorization": f"Bearer {key}"}
+    for model_name in ["whisper-large-v3", "whisper-large-v3-turbo"]:
+        try:
+            with open(file_path, "rb") as f:
+                files = {"file": (os.path.basename(file_path), f, "audio/ogg")}
+                data = {
+                    "model": model_name,
+                    "language": "en",
+                    "response_format": "json"
+                }
+                resp = requests.post(url, headers=headers, files=files, data=data, timeout=30)
+                if resp.status_code == 200:
+                    text = resp.json().get("text", "").strip()
+                    if text:
+                        return text
+                else:
+                    logger.warning(f"[Groq HTTP {model_name} Error] {resp.status_code}: {resp.text}")
+        except Exception as http_err:
+            logger.warning(f"[Groq HTTP Exception {model_name}] {http_err}")
+
+    raise Exception("Could not transcribe audio using Groq Whisper.")
+
 def get_configured_model():
     """Configures and returns the gemini model with System Instruction."""
     import google.generativeai as genai
