@@ -8,7 +8,16 @@ import asyncio
 import logging
 from datetime import datetime
 from aiogram import Router, F, Bot
-from aiogram.types import Message, CallbackQuery, FSInputFile, ReplyKeyboardRemove
+from aiogram.types import (
+    Message,
+    CallbackQuery,
+    FSInputFile,
+    ReplyKeyboardMarkup,
+    KeyboardButton,
+    InlineKeyboardMarkup,
+    InlineKeyboardButton,
+    ReplyKeyboardRemove
+)
 from aiogram.filters import Command, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -19,13 +28,6 @@ from app.services.ai_service import (
     generate_daily_challenge,
     evaluate_daily_challenge,
     text_to_speech_gtts
-)
-from app.bot.keyboards.ai_keyboards import (
-    build_ai_tutor_menu_keyboard,
-    build_ai_session_reply_keyboard,
-    build_academic_writing_reply_keyboard,
-    build_challenge_reply_keyboard,
-    build_ai_voice_replay_keyboard
 )
 
 logger = logging.getLogger(__name__)
@@ -39,6 +41,63 @@ class AcademicWritingStates(StatesGroup):
 
 class DailyChallengeStates(StatesGroup):
     waiting_answer = State()
+
+# =========================================================================
+# لوحات المفاتيح المدمجة ذاتياً (بدون أي اعتماد على ملف خارجي)
+# =========================================================================
+
+def get_main_menu_keyboard_safe() -> ReplyKeyboardMarkup:
+    """Safely retrieves the main menu keyboard from main_menu.py."""
+    try:
+        from app.bot.keyboards.main_menu import get_main_reply_keyboard
+        return get_main_reply_keyboard()
+    except Exception:
+        pass
+    try:
+        from app.bot.keyboards.main_menu import get_main_menu_keyboard
+        return get_main_menu_keyboard()
+    except Exception:
+        return ReplyKeyboardRemove()
+
+def get_ai_chat_session_keyboard() -> ReplyKeyboardMarkup:
+    """Returns persistent keyboard for AI Tutor chat mode."""
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="🔙 إنهاء المحادثة")]
+        ],
+        resize_keyboard=True,
+        persistent=True,
+        input_field_placeholder="اكتب استفسارك للمساعد اللغوي الذكي..."
+    )
+
+def get_academic_writing_session_keyboard() -> ReplyKeyboardMarkup:
+    """Returns persistent keyboard for Academic Writing Review mode."""
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="🔙 العودة للقائمة الرئيسية")]
+        ],
+        resize_keyboard=True,
+        persistent=True,
+        input_field_placeholder="أرسل نصك أو مقالك الأكاديمي للتدقيق..."
+    )
+
+def get_daily_challenge_session_keyboard() -> ReplyKeyboardMarkup:
+    """Returns keyboard for Daily English Challenge mode."""
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [
+                KeyboardButton(text="🎯 سؤال آخر | New Question"),
+                KeyboardButton(text="🔙 العودة للقائمة الرئيسية")
+            ]
+        ],
+        resize_keyboard=True,
+        persistent=True,
+        input_field_placeholder="أرسل إجابتك أو حلك للتحدي..."
+    )
+
+# =========================================================================
+# محرك إرسال البصمة الصوتية البريطانية في الخلفية
+# =========================================================================
 
 async def send_tts_voice_response(message: Message, text: str, accent: str = "co.uk"):
     """Generates and delivers a British accent voice note asynchronously without blocking."""
@@ -59,7 +118,6 @@ async def send_tts_voice_response(message: Message, text: str, accent: str = "co
             await message.answer_voice(
                 voice=voice_file,
                 caption="🗣️ <i>الاستماع إلى النطق النموذجي باللكنة البريطانية المعتمدة (British Accent)</i> 🇬🇧",
-                reply_markup=build_ai_voice_replay_keyboard(),
                 parse_mode="HTML"
             )
     except Exception as e:
@@ -72,7 +130,7 @@ async def send_tts_voice_response(message: Message, text: str, accent: str = "co
                 pass
 
 # =========================================================================
-# 1. AI Language Tutor Handlers
+# 1. المساعد اللغوي الذكي (AI Tutor)
 # =========================================================================
 
 @ai_router.message(StateFilter("*"), F.text.contains("المساعد اللغوي") | F.text.contains("AI Tutor"))
@@ -98,7 +156,7 @@ async def handle_start_ai_tutor_chat(message: Message, state: FSMContext):
 
     await message.answer(
         text=welcome_text,
-        reply_markup=build_ai_session_reply_keyboard(),
+        reply_markup=get_ai_chat_session_keyboard(),
         parse_mode="HTML"
     )
 
@@ -114,21 +172,20 @@ async def handle_start_ai_tutor_chat_callback(callback: CallbackQuery, state: FS
             "🤖 <b>تم تفعيل المساعد اللغوي الذكي بنجاح!</b>\n"
             "اكتب أي سؤال باللغة الإنجليزية أو العربية وسأجيبك فوراً مع شرح دقيق ونطق بريطاني صوتي 🇬🇧:"
         ),
-        reply_markup=build_ai_session_reply_keyboard(),
+        reply_markup=get_ai_chat_session_keyboard(),
         parse_mode="HTML"
     )
 
-@ai_router.message(AITutorStates.chatting, F.text.contains("إنهاء المحادثة") | F.text.in_(["/exit", "/stop", "خروج", "Exit"]))
+@ai_router.message(AITutorStates.chatting, F.text.contains("إنهاء المحادثة") | F.text.in_(["/exit", "/stop", "خروج", "Exit", "إنهاء", "🔙 إنهاء المحادثة"]))
 async def handle_exit_ai_tutor_chat(message: Message, state: FSMContext):
     """Exits tutor session and returns to main menu."""
     await state.clear()
-    from app.bot.keyboards.main_menu import get_main_menu_keyboard
     await message.answer(
         text=(
             "👋 <b>تم إنهاء جلسة المساعد اللغوي بنجاح.</b>\n"
             "أحسنت صنعاً! يمكنك العودة وممارسة اللغة معي في أي وقت تشاء 🌟"
         ),
-        reply_markup=get_main_menu_keyboard(),
+        reply_markup=get_main_menu_keyboard_safe(),
         parse_mode="HTML"
     )
 
@@ -162,7 +219,7 @@ async def handle_ai_chat_unified(message: Message, state: FSMContext):
         f"🤖 <b>Fluence AI Tutor:</b>\n"
         f"────────────────────\n"
         f"{ai_reply}\n\n"
-        f"💡 <i>اكتب ردك التالي لمتابعة المحادثة، أو اضغط 'إنهاء المحادثة' للعودة.</i>"
+        f"💡 <i>اكتب ردك التالي لمتابعة المحادثة، أو اضغط '🔙 إنهاء المحادثة' للعودة.</i>"
     )
 
     try:
@@ -175,11 +232,11 @@ async def handle_ai_chat_unified(message: Message, state: FSMContext):
         history = history[-16:]
     await state.update_data(history=history)
 
-    # Send voice note in background without blocking chat
+    # تشغيل توليد الصوت وإرساله بالخلفية بدون تأخير المحادثة
     asyncio.create_task(send_tts_voice_response(message, ai_reply, accent="co.uk"))
 
 # =========================================================================
-# 2. Academic Writing Reviewer Handlers
+# 2. مصحح ومدقق الكتابة الأكاديمية (Academic Reviewer)
 # =========================================================================
 
 @ai_router.message(StateFilter("*"), F.text.contains("مصحح الكتابة الأكاديمية") | F.text.contains("Academic Writing"))
@@ -203,7 +260,7 @@ async def handle_start_academic_writing(message: Message, state: FSMContext):
 
     await message.answer(
         text=info_text,
-        reply_markup=build_academic_writing_reply_keyboard(),
+        reply_markup=get_academic_writing_session_keyboard(),
         parse_mode="HTML"
     )
 
@@ -215,10 +272,9 @@ async def handle_start_academic_writing_callback(callback: CallbackQuery, state:
 @ai_router.message(AcademicWritingStates.reviewing, F.text.contains("العودة للقائمة الرئيسية") | F.text.contains("إنهاء") | F.text.in_(["/exit", "/stop", "خروج", "Exit"]))
 async def handle_exit_academic_writing(message: Message, state: FSMContext):
     await state.clear()
-    from app.bot.keyboards.main_menu import get_main_menu_keyboard
     await message.answer(
         "🔙 تم الخروج من قسم التدقيق الأكاديمي والعودة إلى القائمة الرئيسية.",
-        reply_markup=get_main_menu_keyboard()
+        reply_markup=get_main_menu_keyboard_safe()
     )
 
 @ai_router.message(AcademicWritingStates.reviewing, F.text)
@@ -253,7 +309,7 @@ async def handle_process_academic_text(message: Message, state: FSMContext):
         await message.answer(response_text, parse_mode="HTML")
 
 # =========================================================================
-# 3. Daily AI Challenge Handlers
+# 3. تحدي اليوم الذكي (Daily Challenge)
 # =========================================================================
 
 @ai_router.message(StateFilter("*"), F.text.contains("تحدي اليوم") | F.text.contains("Daily Challenge"))
@@ -278,9 +334,9 @@ async def handle_start_daily_challenge(message: Message, state: FSMContext):
     )
 
     try:
-        await loading.edit_text(text, reply_markup=build_challenge_reply_keyboard(), parse_mode="HTML")
+        await loading.edit_text(text, reply_markup=get_daily_challenge_session_keyboard(), parse_mode="HTML")
     except Exception:
-        await message.answer(text, reply_markup=build_challenge_reply_keyboard(), parse_mode="HTML")
+        await message.answer(text, reply_markup=get_daily_challenge_session_keyboard(), parse_mode="HTML")
 
 @ai_router.callback_query(StateFilter("*"), F.data == "open_daily_challenge")
 async def handle_start_daily_challenge_callback(callback: CallbackQuery, state: FSMContext):
@@ -290,10 +346,9 @@ async def handle_start_daily_challenge_callback(callback: CallbackQuery, state: 
 @ai_router.message(DailyChallengeStates.waiting_answer, F.text.contains("العودة للقائمة الرئيسية") | F.text.in_(["/exit", "/stop", "خروج", "Exit"]))
 async def handle_exit_daily_challenge(message: Message, state: FSMContext):
     await state.clear()
-    from app.bot.keyboards.main_menu import get_main_menu_keyboard
     await message.answer(
         "🔙 تم إنهاء التحدي والعودة إلى القائمة الرئيسية بنجاح.",
-        reply_markup=get_main_menu_keyboard()
+        reply_markup=get_main_menu_keyboard_safe()
     )
 
 @ai_router.message(DailyChallengeStates.waiting_answer, F.text.contains("سؤال آخر") | F.text.contains("New Question"))
@@ -319,6 +374,6 @@ async def handle_evaluate_daily_challenge_answer(message: Message, state: FSMCon
     )
 
     try:
-        await eval_msg.edit_text(result_text, reply_markup=build_challenge_reply_keyboard(), parse_mode="HTML")
+        await eval_msg.edit_text(result_text, reply_markup=get_daily_challenge_session_keyboard(), parse_mode="HTML")
     except Exception:
-        await message.answer(result_text, reply_markup=build_challenge_reply_keyboard(), parse_mode="HTML")
+        await message.answer(result_text, reply_markup=get_daily_challenge_session_keyboard(), parse_mode="HTML")
