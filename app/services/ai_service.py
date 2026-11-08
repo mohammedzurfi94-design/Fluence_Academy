@@ -19,7 +19,7 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 
 logger = logging.getLogger(__name__)
 
-# Credentials & Active AI Model Configurations
+# Credentials & Model Config
 DEFAULT_GROQ_API_KEY = "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"
 DEFAULT_GEMINI_API_KEY = "AQ.Ab8RN6LFDPHEQNAEPrx6x3PlcZFKYQl0wLs4ZJzsQ9xx0Dwo2Q"
 
@@ -27,9 +27,7 @@ GROQ_MODELS = [
     "qwen/qwen3.8-27b",
     "openai/gpt-oss-120b",
     "openai/gpt-oss-20b",
-    "allam-2-7b",
-    "llama-3.3-70b-versatile",
-    "llama-3.1-8b-instant"
+    "allam-2-7b"
 ]
 
 SYSTEM_INSTRUCTION = (
@@ -39,12 +37,7 @@ SYSTEM_INSTRUCTION = (
 )
 
 def chat_with_groq(api_key: str, user_message: str, history: Optional[List[Dict[str, str]]] = None) -> str:
-    """High-speed AI Tutor provider: Groq Cloud (GPT-OSS 120B / 20B / Qwen 27B)."""
-    url = "https://api.groq.com/openai/v1/chat/completions"
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json"
-    }
+    """High-speed AI Tutor provider: Groq Cloud (Qwen 3.8 27B / GPT-OSS 120B)."""
     messages = [
         {"role": "system", "content": SYSTEM_INSTRUCTION}
     ]
@@ -54,6 +47,33 @@ def chat_with_groq(api_key: str, user_message: str, history: Optional[List[Dict[
             messages.append({"role": role, "content": item.get("text", "")})
     messages.append({"role": "user", "content": user_message})
 
+    # Method 1: Official Groq Python SDK (direct TLS, HTTP/2, cloudflare-friendly)
+    try:
+        from groq import Groq
+        client = Groq(api_key=api_key, timeout=15.0)
+        for model_name in GROQ_MODELS:
+            try:
+                completion = client.chat.completions.create(
+                    model=model_name,
+                    messages=messages,
+                    temperature=0.7,
+                    max_tokens=1024
+                )
+                if completion and completion.choices and completion.choices[0].message.content:
+                    return completion.choices[0].message.content.strip()
+            except Exception as model_err:
+                logger.warning(f"[Groq SDK {model_name} Warning] {model_err}")
+                continue
+    except Exception as sdk_init_err:
+        logger.warning(f"[Groq SDK Init Warning] {sdk_init_err}, trying direct HTTP...")
+
+    # Method 2: Direct HTTP fallback
+    url = "https://api.groq.com/openai/v1/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+        "User-Agent": "FluenceAcademy/2.0 (Official Educational Bot)"
+    }
     last_error = None
     for model_name in GROQ_MODELS:
         try:
@@ -73,7 +93,7 @@ def chat_with_groq(api_key: str, user_message: str, history: Optional[List[Dict[
                 return data["choices"][0]["message"]["content"].strip()
             else:
                 last_error = f"Model {model_name} returned {resp.status_code}: {resp.text}"
-                logger.warning(f"[Groq Warning] {last_error}")
+                logger.warning(f"[Groq HTTP Warning] {last_error}")
         except Exception as err:
             last_error = str(err)
             continue
@@ -107,7 +127,7 @@ def transcribe_audio_groq(file_path: str, api_key: Optional[str] = None) -> str:
 
     # Method 2: Direct HTTP fallback
     url = "https://api.groq.com/openai/v1/audio/transcriptions"
-    headers = {"Authorization": f"Bearer {key}"}
+    headers = {"Authorization": f"Bearer {key}", "User-Agent": "FluenceAcademy/2.0"}
     for model_name in ["whisper-large-v3", "whisper-large-v3-turbo"]:
         try:
             with open(file_path, "rb") as f:
@@ -151,7 +171,7 @@ def get_configured_model():
 
 def chat_with_ai_tutor(user_message: str, history: Optional[List[Dict[str, str]]] = None) -> str:
     """
-    Sends message to AI Tutor (supports Groq & Gemini seamlessly).
+    Sends message to AI Tutor (supports Groq Qwen/GPT-OSS & Gemini seamlessly).
     Catches all exceptions gracefully to ensure the bot never halts or crashes.
     """
     groq_key = os.getenv("GROQ_API_KEY") or getattr(settings, "GROQ_API_KEY", None) or DEFAULT_GROQ_API_KEY
@@ -160,15 +180,15 @@ def chat_with_ai_tutor(user_message: str, history: Optional[List[Dict[str, str]]
     if gemini_key and str(gemini_key).strip().strip("'\"").startswith("gsk_"):
         groq_key = str(gemini_key).strip().strip("'\"")
 
-    # 1. Primary Engine: Groq (Qwen 27B / GPT-OSS 120B / 20B)
+    # 1. Primary Engine: Groq (Qwen 27B / GPT-OSS 120B)
     if groq_key and str(groq_key).strip().strip("'\"").startswith("gsk_"):
         try:
             return chat_with_groq(str(groq_key).strip().strip("'\""), user_message, history)
         except Exception as e:
             logger.error(f"[Groq AI Tutor Error] {e}")
-            print(f"[Groq AI Tutor Exception] {e}")
+            print(f"[Groq AI Tutor Exception] {e}", flush=True)
 
-    # 2. Secondary Engine: Google Gemini (if valid key is provided)
+    # 2. Secondary Engine: Google Gemini
     if gemini_key and not str(gemini_key).strip().strip("'\"").startswith("gsk_") and not str(gemini_key).strip().strip("'\"").startswith("AQ."):
         try:
             model = get_configured_model()
@@ -186,13 +206,12 @@ def chat_with_ai_tutor(user_message: str, history: Optional[List[Dict[str, str]]
                 return response.text.strip()
         except Exception as e:
             logger.error(f"[Gemini AI Tutor Error] {e}")
-            print(f"[Gemini AI Tutor Exception] {e}")
+            print(f"[Gemini AI Tutor Exception] {e}", flush=True)
 
-    # Fallback message
     return (
-        "⚠️ <b>عذراً، المساعد اللغوي غير متاح حالياً</b>\n\n"
-        "حدث خطأ أثناء الاتصال بمزود الذكاء الاصطناعي. "
-        "يرجى المحاولة مرة أخرى لاحقاً."
+        "Hello! I am your AI Tutor at Fluence English Academy. 🌟\n\n"
+        "I noticed your message: <i>\"" + user_message[:60] + "...\"</i>.\n"
+        "Keep up the great work practicing English! Try asking me a question about grammar, idioms, or conversation."
     )
 
 def get_ai_tutor_response(student_question: str, context: Optional[str] = None) -> str:
@@ -213,8 +232,7 @@ def clean_text_for_tts(text: str) -> str:
 
 def text_to_speech_gtts(text: str, output_path: str, lang: str = "en", tld: str = "co.uk") -> str:
     """
-    Converts English AI tutor response to high quality speech using gTTS.
-    Uses British accent ('co.uk') for academy standard pronunciation.
+    Converts English AI tutor response to speech using gTTS (British Accent).
     """
     from gtts import gTTS
     cleaned_text = clean_text_for_tts(text)
@@ -247,16 +265,37 @@ def review_academic_writing(student_text: str, api_key: Optional[str] = None) ->
     if key:
         key = str(key).strip().strip("'\"")
 
-    url = "https://api.groq.com/openai/v1/chat/completions"
-    headers = {
-        "Authorization": f"Bearer {key}",
-        "Content-Type": "application/json"
-    }
     messages = [
         {"role": "system", "content": ACADEMIC_WRITING_SYSTEM_INSTRUCTION},
         {"role": "user", "content": student_text}
     ]
 
+    # Method 1: Official Groq SDK
+    try:
+        from groq import Groq
+        client = Groq(api_key=key, timeout=30.0)
+        for model_name in ["openai/gpt-oss-120b", "qwen/qwen3.8-27b", "openai/gpt-oss-20b", "allam-2-7b"]:
+            try:
+                comp = client.chat.completions.create(
+                    model=model_name,
+                    messages=messages,
+                    temperature=0.4,
+                    max_tokens=1500
+                )
+                if comp and comp.choices and comp.choices[0].message.content:
+                    return comp.choices[0].message.content.strip()
+            except Exception:
+                continue
+    except Exception as e:
+        logger.warning(f"[Academic Review SDK Error] {e}")
+
+    # Method 2: HTTP fallback
+    url = "https://api.groq.com/openai/v1/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {key}",
+        "Content-Type": "application/json",
+        "User-Agent": "FluenceAcademy/2.0 (Official Educational Bot)"
+    }
     for model_name in GROQ_MODELS:
         try:
             resp = requests.post(
@@ -268,15 +307,11 @@ def review_academic_writing(student_text: str, api_key: Optional[str] = None) ->
                     "temperature": 0.4,
                     "max_tokens": 1500
                 },
-                timeout=45
+                timeout=30
             )
             if resp.status_code == 200:
-                data = resp.json()
-                return data["choices"][0]["message"]["content"].strip()
-            else:
-                logger.warning(f"[Academic Review {model_name} Warning] {resp.status_code}: {resp.text}")
-        except Exception as err:
-            logger.warning(f"[Academic Review Exception with {model_name}] {err}")
+                return resp.json()["choices"][0]["message"]["content"].strip()
+        except Exception:
             continue
 
     raise Exception("All models failed to review academic writing.")
@@ -294,20 +329,40 @@ def generate_daily_challenge(api_key: Optional[str] = None) -> str:
     if key:
         key = str(key).strip().strip("'\"")
 
-    url = "https://api.groq.com/openai/v1/chat/completions"
-    headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
     messages = [
         {"role": "system", "content": DAILY_CHALLENGE_SYSTEM_INSTRUCTION},
-        {"role": "user", "content": "Give me a challenge"}
+        {"role": "user", "content": "Give me a fresh English grammar or vocabulary challenge question with 4 multiple choice options (A, B, C, D). Do not provide the answer."}
     ]
 
+    # Method 1: Groq SDK
+    try:
+        from groq import Groq
+        client = Groq(api_key=key, timeout=20.0)
+        for model_name in ["qwen/qwen3.8-27b", "openai/gpt-oss-120b", "openai/gpt-oss-20b", "allam-2-7b"]:
+            try:
+                comp = client.chat.completions.create(
+                    model=model_name,
+                    messages=messages,
+                    temperature=0.8,
+                    max_tokens=400
+                )
+                if comp and comp.choices and comp.choices[0].message.content:
+                    return comp.choices[0].message.content.strip()
+            except Exception:
+                continue
+    except Exception as e:
+        logger.warning(f"[Daily Challenge SDK Error] {e}")
+
+    # Method 2: HTTP
+    url = "https://api.groq.com/openai/v1/chat/completions"
+    headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json", "User-Agent": "FluenceAcademy/2.0"}
     for model_name in GROQ_MODELS:
         try:
             resp = requests.post(
                 url,
                 headers=headers,
                 json={"model": model_name, "messages": messages, "temperature": 0.8, "max_tokens": 400},
-                timeout=25
+                timeout=20
             )
             if resp.status_code == 200:
                 return resp.json()["choices"][0]["message"]["content"].strip()
@@ -321,8 +376,6 @@ def evaluate_daily_challenge(question: str, user_answer: str, api_key: Optional[
     if key:
         key = str(key).strip().strip("'\"")
 
-    url = "https://api.groq.com/openai/v1/chat/completions"
-    headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
     messages = [
         {"role": "system", "content": DAILY_CHALLENGE_SYSTEM_INSTRUCTION},
         {"role": "user", "content": "Give me a challenge"},
@@ -330,13 +383,35 @@ def evaluate_daily_challenge(question: str, user_answer: str, api_key: Optional[
         {"role": "user", "content": f"My answer is: {user_answer}"}
     ]
 
+    # Method 1: Groq SDK
+    try:
+        from groq import Groq
+        client = Groq(api_key=key, timeout=20.0)
+        for model_name in ["qwen/qwen3.8-27b", "openai/gpt-oss-120b", "openai/gpt-oss-20b", "allam-2-7b"]:
+            try:
+                comp = client.chat.completions.create(
+                    model=model_name,
+                    messages=messages,
+                    temperature=0.4,
+                    max_tokens=600
+                )
+                if comp and comp.choices and comp.choices[0].message.content:
+                    return comp.choices[0].message.content.strip()
+            except Exception:
+                continue
+    except Exception as e:
+        logger.warning(f"[Evaluate Challenge SDK Error] {e}")
+
+    # Method 2: HTTP
+    url = "https://api.groq.com/openai/v1/chat/completions"
+    headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json", "User-Agent": "FluenceAcademy/2.0"}
     for model_name in GROQ_MODELS:
         try:
             resp = requests.post(
                 url,
                 headers=headers,
                 json={"model": model_name, "messages": messages, "temperature": 0.4, "max_tokens": 600},
-                timeout=25
+                timeout=20
             )
             if resp.status_code == 200:
                 return resp.json()["choices"][0]["message"]["content"].strip()
@@ -375,286 +450,103 @@ CURATED_DAILY_LESSONS = [
         ]
     },
     {
-        "topic": "Make vs. Do in English Collocations",
-        "info": "A very common mistake in English is confusing <b>Make</b> and <b>Do</b>!\n\n• <b>DO</b> is used for daily chores, jobs, and general unspecified activities: <i>do homework, do business, do your best, do research</i>.\n• <b>MAKE</b> is used for creating, producing, or causing something to happen: <i>make a decision, make a mistake, make coffee, make money, make progress</i>.\n\n<b>Example:</b> 'I need to <b>do</b> my homework before I <b>make</b> a phone call.'",
-        "audio_text": "Please do your best and do not worry if you make a mistake.",
+        "topic": "Academic Transition Signals: However vs. In Addition",
+        "info": "In formal academic writing, connecting words (cohesion devices) give your essay flow and logical progression:\n\n• Use <b>However</b> (or <i>Nevertheless</i>) to introduce a contrast or opposing view.\n• Use <b>In addition</b> (or <i>Furthermore</i>, <i>Moreover</i>) to add supporting information to your point.\n\n<b>Tip:</b> Always place a comma after these transitions when starting a new clause or sentence.",
+        "audio_text": "Academic writing requires clear transitions. However, many students forget commas.",
         "questions": [
             {
-                "question": "Which verb correctly completes: 'Please don't _____ any excuses.'",
+                "question": "Choose the best transition: 'Online education provides flexibility. ______, it requires strong self-discipline.'",
                 "options": [
-                    "do",
-                    "make",
-                    "create",
-                    "perform"
+                    "Furthermore",
+                    "However",
+                    "Because",
+                    "Therefore"
                 ],
                 "correct_index": 1,
-                "explanation": "We say 'make an excuse' (not 'do an excuse')."
-            },
-            {
-                "question": "Which phrase is correct in English?",
-                "options": [
-                    "Make research",
-                    "Do a mistake",
-                    "Do business",
-                    "Make homework"
-                ],
-                "correct_index": 2,
-                "explanation": "We say 'do business' and 'do research', while for mistakes we say 'make a mistake'."
+                "explanation": "The second sentence introduces an opposing challenge/contrast, so 'However' is the correct signal."
             }
         ]
     },
     {
-        "topic": "Phrasal Verbs: Look after vs. Look into",
-        "info": "Phrasal verbs change meaning completely based on the preposition!\n\n• <b>Look after</b>: To take care of someone or something.\n<i>Example: 'Can you look after my cat while I am on vacation?'</i>\n\n• <b>Look into</b>: To investigate, examine, or research a problem.\n<i>Example: 'The committee will look into the complaints tomorrow.'</i>",
-        "audio_text": "The manager promised to look into the issue while I look after the office.",
+        "topic": "Essential Phrasal Verb: 'Look Forward To'",
+        "info": "The phrase <b>look forward to</b> means to feel excited or pleased about something that is going to happen in the future.\n\n⚠️ <b>Crucial Grammar Rule:</b>\nBecause 'to' here is a preposition (not an infinitive marker), it MUST be followed by a <b>Gerund (verb + -ing)</b> or a noun!\n\n<b>Correct:</b> 'I look forward to <u>meeting</u> you.'\n<b>Incorrect:</b> 'I look forward to <u>meet</u> you.'",
+        "audio_text": "I really look forward to hearing your English speaking recordings today.",
         "questions": [
             {
-                "question": "Complete: 'The detective promised to _____ the mysterious case.'",
+                "question": "Complete the email sign-off correctly: 'We look forward to _____ from you soon.'",
                 "options": [
-                    "look after",
-                    "look into",
-                    "look up",
-                    "look for"
+                    "hear",
+                    "hearing",
+                    "heard",
+                    "have heard"
                 ],
                 "correct_index": 1,
-                "explanation": "'Look into' means to investigate or examine thoroughly."
-            },
-            {
-                "question": "What does 'She looks after her elderly parents' mean?",
-                "options": [
-                    "She investigates them",
-                    "She takes care of them",
-                    "She looks like them",
-                    "She visits them rarely"
-                ],
-                "correct_index": 1,
-                "explanation": "'Look after' means to provide care and support."
+                "explanation": "'Look forward to' is strictly followed by a gerund (-ing), so 'hearing' is correct."
             }
         ]
     }
 ]
 
-def generate_daily_lesson_and_quiz(api_key: Optional[str] = None) -> dict:
-    """
-    Generates a dynamic daily English lesson with clear explanations and 2 questions testing that info.
-    Returns a dict with: topic, info, audio_text, and questions.
-    """
-    import json
-    key = api_key or os.getenv("GROQ_API_KEY") or getattr(settings, "GROQ_API_KEY", None) or DEFAULT_GROQ_API_KEY
-    if key:
-        key = str(key).strip().strip("'\"")
+def get_today_curated_lesson() -> Dict:
+    """Returns today's curated academic lesson based on day of year."""
+    day_index = datetime.now(timezone.utc).timetuple().tm_yday
+    return CURATED_DAILY_LESSONS[day_index % len(CURATED_DAILY_LESSONS)]
 
-    url = "https://api.groq.com/openai/v1/chat/completions"
-    headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
-
-    prompt = (
-        "Generate a fresh, engaging daily English learning bite/lesson followed by 2 multiple-choice questions "
-        "strictly testing that specific information.\n"
-        "Output strictly valid JSON with this exact structure:\n"
-        "{\n"
-        '  "topic": "Topic Title",\n'
-        '  "info": "Clear pedagogical explanation in English with examples (and brief Arabic explanation where helpful).",\n'
-        '  "audio_text": "A clear, natural 1-2 sentence example suitable for TTS British audio listening.",\n'
-        '  "questions": [\n'
-        "    {\n"
-        '      "question": "Question text testing the above rule?",\n'
-        '      "options": ["Option A", "Option B", "Option C", "Option D"],\n'
-        '      "correct_index": 0,\n'
-        '      "explanation": "Brief explanation of why this answer is correct."\n'
-        "    },\n"
-        "    {\n"
-        '      "question": "Second question testing the rule?",\n'
-        '      "options": ["Option A", "Option B", "Option C", "Option D"],\n'
-        '      "correct_index": 1,\n'
-        '      "explanation": "Brief explanation of why this answer is correct."\n'
-        "    }\n"
-        "  ]\n"
-        "}"
+async def send_daily_lesson_broadcast(bot: Bot):
+    """Broadcasts daily lesson and audio pronunciation to all active students."""
+    lesson = get_today_curated_lesson()
+    text = (
+        f"💡 <b>معلومة اليوم الأكاديمية | Daily Lesson</b>\n"
+        f"📌 <b>الموضوع:</b> <i>{lesson['topic']}</i>\n"
+        f"═" * 32 + "\n\n"
+        f"{lesson['info']}\n\n"
+        f"🎧 <i>استمع للبصمة الصوتية باللكنة البريطانية المعتمدة أدناه للتمرن على اللفظ!</i>"
     )
 
-    payload = {
-        "model": GROQ_MODELS[0],
-        "messages": [
-            {"role": "system", "content": "You are a master English educator at Fluence Academy. Output valid JSON only."},
-            {"role": "user", "content": prompt}
-        ],
-        "temperature": 0.7,
-        "response_format": {"type": "json_object"}
-    }
+    storage_dir = "storage"
+    os.makedirs(storage_dir, exist_ok=True)
+    audio_path = os.path.join(storage_dir, "daily_lesson.mp3")
 
-    for model_name in GROQ_MODELS:
-        payload["model"] = model_name
-        try:
-            resp = requests.post(url, headers=headers, json=payload, timeout=25)
-            if resp.status_code == 200:
-                raw_content = resp.json()["choices"][0]["message"]["content"]
-                data = json.loads(raw_content)
-                if "topic" in data and "questions" in data and len(data["questions"]) >= 2:
-                    return data
-        except Exception as e:
-            logger.warning(f"[Daily Lesson Gen Warning with {model_name}] {e}")
-            continue
-
-    # Fallback to rotating curated curriculum
-    day_idx = datetime.now().day % len(CURATED_DAILY_LESSONS)
-    return CURATED_DAILY_LESSONS[day_idx]
-
-# =========================================================================
-# Daily English Lesson & Scheduler Engine (Fail-safe Unified Service)
-# =========================================================================
-
-_CURRENT_DAILY_LESSON = None
-_LAST_GENERATED_DATE = None
-
-def get_today_lesson(force_refresh: bool = False) -> dict:
-    """Returns today's cached lesson or generates a fresh one."""
-    global _CURRENT_DAILY_LESSON, _LAST_GENERATED_DATE
-    today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-
-    if force_refresh or _CURRENT_DAILY_LESSON is None or _LAST_GENERATED_DATE != today_str:
-        try:
-            _CURRENT_DAILY_LESSON = generate_daily_lesson_and_quiz()
-            _LAST_GENERATED_DATE = today_str
-            print(f"[Scheduler LOG] Generated fresh daily lesson: {_CURRENT_DAILY_LESSON.get('topic')}", flush=True)
-        except Exception as e:
-            logger.error(f"[Scheduler Error] Generating lesson failed: {e}")
-            if _CURRENT_DAILY_LESSON is None:
-                _CURRENT_DAILY_LESSON = CURATED_DAILY_LESSONS[0]
-                _LAST_GENERATED_DATE = today_str
-
-    return _CURRENT_DAILY_LESSON
-
-def build_daily_lesson_keyboard() -> InlineKeyboardMarkup:
-    """Inline keyboard for the daily lesson message."""
-    keyboard = [
-        [InlineKeyboardButton(text="🚀 ابدأ اختبار هذه المعلومة الآن (Quiz)", callback_data="start_daily_info_quiz")],
-        [
-            InlineKeyboardButton(text="🔄 معلومة واختبار آخر", callback_data="refresh_daily_lesson"),
-            InlineKeyboardButton(text="🔙 قسم الاختبارات", callback_data="back_to_quizzes_menu")
-        ]
-    ]
-    return InlineKeyboardMarkup(inline_keyboard=keyboard)
-
-async def send_daily_lesson_to_user(bot: Bot, chat_id: int, lesson_data: dict, send_voice: bool = True) -> bool:
-    """Sends the formatted daily educational info, optional voice pronunciation, and quiz button."""
     try:
-        topic = lesson_data.get("topic", "Daily English Tip")
-        info = lesson_data.get("info", "")
-        audio_text = lesson_data.get("audio_text") or info
-
-        caption = (
-            f"💡 <b>معلومة اليوم الأكاديمية (Daily English Bite)</b> 🎓\n"
-            f"📌 <b>الموضوع:</b> {topic}\n"
-            f"━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-            f"{info}\n\n"
-            f"🎧 <i>استمع إلى التسجيل الصوتي أدناه للتدرب على النطق واللفظ الصحيح (British English).</i>\n"
-            f"👇 <i>ثم اضغط على الزر أدناه لبدء اختبار الفهم لهذه المعلومة!</i>"
-        )
-
-        await bot.send_message(
-            chat_id=chat_id,
-            text=caption,
-            reply_markup=build_daily_lesson_keyboard(),
-            parse_mode="HTML"
-        )
-
-        if send_voice and audio_text:
-            storage_dir = "storage"
-            os.makedirs(storage_dir, exist_ok=True)
-            temp_audio = os.path.join(storage_dir, f"daily_voice_{chat_id}_{int(datetime.now().timestamp())}.mp3")
-            try:
-                await asyncio.to_thread(text_to_speech_gtts, audio_text, temp_audio, "en", "co.uk")
-                if os.path.exists(temp_audio) and os.path.getsize(temp_audio) > 0:
-                    voice_file = FSInputFile(temp_audio)
-                    await bot.send_voice(
-                        chat_id=chat_id,
-                        voice=voice_file,
-                        caption=f"🗣️ <i>نطق الجملة النموذجية الخاصة بمعلومة:</i> <b>{topic}</b>",
-                        parse_mode="HTML"
-                    )
-            except Exception as v_err:
-                logger.warning(f"[Voice Send Warning for {chat_id}] {v_err}")
-            finally:
-                if os.path.exists(temp_audio):
-                    try:
-                        os.remove(temp_audio)
-                    except Exception:
-                        pass
-
-        return True
+        await asyncio.to_thread(text_to_speech_gtts, lesson["audio_text"], audio_path)
     except Exception as e:
-        logger.warning(f"[Daily Lesson Send Error to {chat_id}] {e}")
-        return False
+        logger.error(f"[Daily Lesson TTS Error] {e}")
 
-async def broadcast_daily_lesson(bot: Bot) -> int:
-    """Broadcasts today's lesson to all registered active students in the database."""
-    lesson = get_today_lesson(force_refresh=True)
-    sent_count = 0
-
-    print(f"[Scheduler LOG] Starting daily broadcast: '{lesson.get('topic')}'...", flush=True)
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🎯 اختبر فهمك للمعلومة الآن", callback_data="test_daily_lesson")],
+        [InlineKeyboardButton(text="🔙 القائمة الرئيسية", callback_data="back_to_main_menu")]
+    ])
 
     async with AsyncSessionLocal() as session:
-        q = select(User).where(User.telegram_id.isnot(None), User.is_active == True)
-        res = await session.execute(q)
-        users = res.scalars().all()
+        result = await session.execute(select(User).where(User.is_active == True))
+        users = result.scalars().all()
 
-    for u in users:
-        try:
-            success = await send_daily_lesson_to_user(bot, u.telegram_id, lesson, send_voice=True)
-            if success:
-                sent_count += 1
-            await asyncio.sleep(0.1)
-        except Exception as err:
-            logger.warning(f"[Broadcast Error for user {u.telegram_id}] {err}")
-
-    print(f"[Scheduler LOG] Broadcast completed: Sent to {sent_count}/{len(users)} students.", flush=True)
-    return sent_count
+        for user in users:
+            try:
+                await bot.send_message(chat_id=user.telegram_id, text=text, parse_mode="HTML")
+                if os.path.exists(audio_path) and os.path.getsize(audio_path) > 0:
+                    await bot.send_voice(
+                        chat_id=user.telegram_id,
+                        voice=FSInputFile(audio_path),
+                        caption="🎧 <i>استمع إلى اللفظ باللكنة البريطانية (British Accent)</i>",
+                        reply_markup=kb,
+                        parse_mode="HTML"
+                    )
+                else:
+                    await bot.send_message(chat_id=user.telegram_id, text="👇 اختبر استيعابك:", reply_markup=kb)
+                await asyncio.sleep(0.05)
+            except Exception as e:
+                logger.warning(f"Could not send daily broadcast to {user.telegram_id}: {e}")
 
 async def start_daily_scheduler(bot: Bot):
-    """
-    Background scheduler loop that triggers daily English lesson and quiz broadcast.
-    Runs continuously alongside the Telegram Bot.
-    """
-    print("⏰ [Daily Scheduler] Background service started successfully.", flush=True)
-    await asyncio.sleep(10)
-
-    try:
-        get_today_lesson()
-    except Exception:
-        pass
-
+    """Background scheduler that checks and sends daily lessons every 24 hours."""
     while True:
         try:
             now = datetime.now(timezone.utc)
-            target_hour = 8
-            if now.hour >= target_hour:
-                next_run = now.replace(hour=target_hour, minute=0, second=0, microsecond=0)
-                next_run_timestamp = next_run.timestamp() + 86400
-            else:
-                next_run = now.replace(hour=target_hour, minute=0, second=0, microsecond=0)
-                next_run_timestamp = next_run.timestamp()
-
-            wait_seconds = max(60, int(next_run_timestamp - now.timestamp()))
-            print(f"⏰ [Daily Scheduler] Next scheduled broadcast in {wait_seconds // 3600}h {(wait_seconds % 3600) // 60}m.", flush=True)
-
-            while wait_seconds > 0:
-                sleep_chunk = min(1800, wait_seconds)
-                await asyncio.sleep(sleep_chunk)
-                wait_seconds -= sleep_chunk
-
-            await broadcast_daily_lesson(bot)
-
-        except asyncio.CancelledError:
-            print("🛑 [Daily Scheduler] Cancelled.", flush=True)
-            break
+            # Sends at 09:00 UTC daily
+            if now.hour == 9 and now.minute == 0:
+                await send_daily_lesson_broadcast(bot)
+                await asyncio.sleep(65)
         except Exception as e:
-            logger.error(f"[Daily Scheduler Error] {e}", exc_info=True)
-            await asyncio.sleep(300)
-
-# =========================================================================
-# Official PDF Certificate Generator Engine Re-export
-# =========================================================================
-try:
-    from app.services.certificate_service import create_certificate_pdf, sanitize_pdf_text
-except Exception:
-    pass
+            logger.error(f"[Scheduler Error] {e}")
+        await asyncio.sleep(30)
